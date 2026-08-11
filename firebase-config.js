@@ -9,13 +9,13 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-s
 // നിങ്ങളുടെ ഫയർബേസ് കോൺഫിഗറേഷൻ
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCQgPVNSb2egQK2CHtGCwituXNH5dCNk0g",
-  authDomain: "fast-portal-003.firebaseapp.com",
-  projectId: "fast-portal-003",
-  storageBucket: "fast-portal-003.firebasestorage.app",
-  messagingSenderId: "815494478086",
-  appId: "1:815494478086:web:b2fcdaa0adde8cf8fa4687",
-  measurementId: "G-H3SDSG82Z7"
+  apiKey: "AIzaSyBIZr2FTMHyzbtayMssjxtN1o6dDME2_hA",
+  authDomain: "fiesta-for-checking.firebaseapp.com",
+  projectId: "fiesta-for-checking",
+  storageBucket: "fiesta-for-checking.firebasestorage.app",
+  messagingSenderId: "243257698174",
+  appId: "1:243257698174:web:97e2d2904eb4d556b9f52f",
+  measurementId: "G-T73M1BMP9V"
 };
 
 // ആപ്പ് ഇനിഷ്യലൈസ് ചെയ്യുന്നു
