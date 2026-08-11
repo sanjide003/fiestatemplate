@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "scripts": {
+    "check": "for f in dependency-loader.js branding-config.js image-upload.js fest-config.js event-utils.js poster-certificate-engine.js poster-certificate-admin.js registration-utils.js admin-utils.js admin-dashboard.js admin-students.js admin-events.js admin-auth.js admin-main.js judge.js score-utils.js login.js; do node --input-type=module --check < \"$f\"; done && node --check functions/index.js && node scripts/event-engine-check.mjs && node scripts/scoring-engine-check.mjs && node scripts/poster-certificate-check.mjs && node scripts/registration-engine-check.mjs && node scripts/build-check.mjs && node scripts/smoke-check.mjs && node scripts/role-access-check.mjs"
+  },
+  "browserDependencies": {
+    "@tailwindcss/browser": "4.3.3",
+    "lucide": "1.25.0",
+    "xlsx": "0.18.5",
+    "html2canvas": "1.4.1",
+    "qrcodejs-cdn": "1.0.0"
+  }
+}

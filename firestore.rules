@@ -1,0 +1,488 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminDoc() {
+      return /databases/$(database)/documents/adminUsers/$(request.auth.uid);
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(adminDoc())
+        && get(adminDoc()).data.active == true
+        && get(adminDoc()).data.role in ['admin', 'superAdmin'];
+    }
+
+    function accessDoc() {
+      return /databases/$(database)/documents/accessUsers/$(request.auth.uid);
+    }
+
+    function canonicalAccessDoc(username) {
+      return /databases/$(database)/documents/accessUsernames/$(username);
+    }
+
+    function matchesCanonicalAccessProfile() {
+      let canonical = get(canonicalAccessDoc(request.resource.data.username)).data;
+      return exists(canonicalAccessDoc(request.resource.data.username))
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.email == canonical.email
+        && request.resource.data.role == canonical.role
+        && request.resource.data.active == canonical.active
+        && (request.resource.data.role != 'teamLeader'
+          || (request.resource.data.team == canonical.team
+            && ((!('genderScope' in canonical)
+                  && (!('genderScope' in request.resource.data) || request.resource.data.genderScope == 'Both'))
+              || request.resource.data.genderScope == canonical.genderScope)));
+    }
+
+    function hasAccessRole(role) {
+      return signedIn()
+        && exists(accessDoc())
+        && get(accessDoc()).data.active == true
+        && get(accessDoc()).data.role == role;
+    }
+
+
+    function teamLeaderCanWriteRegistration(data) {
+      let profile = get(accessDoc()).data;
+      let event = get(/databases/$(database)/documents/events/$(data.eventId)).data;
+      return hasAccessRole('teamLeader')
+        && data.team == profile.team
+        && data.managedGender in ['Boys', 'Girls', 'Both']
+        && ((!('genderScope' in profile) && data.managedGender == 'Both')
+          || profile.genderScope == data.managedGender)
+        && ((!('genderScope' in profile))
+          || profile.genderScope == 'Both'
+          || !('gender' in event)
+          || event.gender == 'Both'
+          || event.gender == profile.genderScope);
+    }
+
+    function teamLeaderCanDeleteRegistration(data) {
+      let profile = get(accessDoc()).data;
+      return hasAccessRole('teamLeader')
+        && data.team == profile.team
+        && ((!('genderScope' in profile) && (!('managedGender' in data) || data.managedGender == 'Both'))
+          || profile.genderScope == 'Both'
+          || !('managedGender' in data)
+          || data.managedGender == profile.genderScope);
+    }
+
+    function registrationsOpen() {
+      let config = /databases/$(database)/documents/settings/schedule_config;
+      return !exists(config)
+        || !('registrationLockAt' in get(config).data)
+        || get(config).data.registrationLockAt == null
+        || request.time.toMillis() < get(config).data.registrationLockAt;
+    }
+
+    function isActiveJudge(judgeId) {
+      return signedIn()
+        && hasAccessRole('judge')
+        && (judgeId == request.auth.uid
+          || (('authUid' in get(accessDoc()).data)
+            && get(accessDoc()).data.authUid == request.auth.uid
+            && judgeId == get(accessDoc()).data.authUid)
+          || (('accessDocId' in get(accessDoc()).data)
+            && judgeId == get(accessDoc()).data.accessDocId)
+          || (('sourceAccessDocId' in get(accessDoc()).data)
+            && judgeId == get(accessDoc()).data.sourceAccessDocId));
+    }
+
+    function assignmentDoc(assignmentId) {
+      return /databases/$(database)/documents/judgeAssignments/$(assignmentId);
+    }
+
+    function judgeOwnsAssignment(assignmentId, judgeId) {
+      return isActiveJudge(judgeId)
+        && exists(assignmentDoc(assignmentId))
+        && (!('active' in get(assignmentDoc(assignmentId)).data)
+          || get(assignmentDoc(assignmentId)).data.active == true)
+        && get(assignmentDoc(assignmentId)).data.judgeId == judgeId;
+    }
+
+    function hasOnly(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isStringOrMissing(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is string;
+    }
+
+    function isNumberOrMissing(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is number;
+    }
+
+    function isBoolOrMissing(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is bool;
+    }
+
+    match /adminUsers/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create, update, delete: if isAdmin();
+    }
+
+
+    match /adminUsernames/{username} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /accessUsers/{userId} {
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid == userId)
+        || (signedIn() && resource.data.email == request.auth.token.email);
+      allow create, update: if isAdmin()
+        || (signedIn()
+          && request.auth.uid == userId
+          && matchesCanonicalAccessProfile()
+          && request.resource.data.role in ['teamLeader', 'judge', 'publisher', 'admin', 'superAdmin']
+          && request.resource.data.active == true);
+      allow delete: if isAdmin();
+    }
+
+    match /accessUsernames/{username} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /teamLeaders/{leaderId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && hasOnly(['name', 'team', 'category', 'gender', 'chestNo', 'photoData', 'details', 'importedAt', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.team is string
+        && isStringOrMissing('category')
+        && isStringOrMissing('gender')
+        && (!('chestNo' in request.resource.data)
+          || request.resource.data.chestNo is number
+          || (request.resource.data.chestNo is string
+            && request.resource.data.chestNo.size() > 0
+            && request.resource.data.chestNo.size() <= 32
+            && request.resource.data.chestNo.matches('[A-Za-z0-9_-]+')))
+        && (!('details' in request.resource.data) || request.resource.data.details is map)
+        && (!('importedAt' in request.resource.data) || request.resource.data.importedAt is number)
+        && isNumberOrMissing('updatedAt')
+        && (!('photoData' in request.resource.data)
+          || (request.resource.data.photoData is string
+            && request.resource.data.photoData.size() <= 280000
+            && (request.resource.data.photoData == '' || request.resource.data.photoData.matches('data:image/(jpeg|png|webp|gif);base64,.*'))));
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoData', 'photoUpdatedAt', 'photoUpdatedBy'])
+        && request.resource.data.photoData is string
+        && request.resource.data.photoData.size() <= 280000
+        && (request.resource.data.photoData == '' || request.resource.data.photoData.matches('data:image/(jpeg|png|webp|gif);base64,.*'))
+        && request.resource.data.photoUpdatedAt is number
+        && request.resource.data.photoUpdatedBy == 'registration_portal';
+      allow delete: if isAdmin();
+    }
+
+    match /participants/{participantId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /registrationRequests/{requestId} {
+      allow create: if request.resource.data.keys().hasOnly(['name', 'participantType', 'gender', 'phone', 'email', 'team', 'category', 'relatedStudentId', 'relationship', 'groupMembers', 'eventIds', 'note', 'youtubeUrl', 'referenceUrl', 'images', 'status', 'submittedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.participantType in ['student', 'parent', 'staff', 'alumni', 'public', 'guest', 'volunteer']
+        && request.resource.data.gender in ['Boys', 'Girls']
+        && request.resource.data.eventIds is list
+        && request.resource.data.groupMembers is list
+        && request.resource.data.images is list
+        && request.resource.data.images.size() <= 1
+        && (request.resource.data.images.size() < 1 || (request.resource.data.images[0].data is string && request.resource.data.images[0].data.size() <= 410000))
+        && request.resource.data.eventIds.size() > 0
+        && request.resource.data.status == 'pending';
+      allow read: if true;
+      allow update: if isAdmin() || (hasAccessRole('teamLeader')
+        && registrationsOpen()
+        && resource.data.team == get(accessDoc()).data.team
+        && request.resource.data.team == resource.data.team
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decisionByUid', 'decisionByName', 'decisionByRole', 'decisionByUsername', 'decisionAt', 'reviewedAt']))
+        || (resource.data.status in ['pending', 'applied', 'under_review', 'waitlisted', 'pending_admin_approval']
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.team == resource.data.team
+          && request.resource.data.relatedStudentId == resource.data.relatedStudentId
+          && request.resource.data.eventIds == resource.data.eventIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note', 'youtubeUrl', 'referenceUrl', 'images', 'mediaUpdatedAt', 'mediaUpdatedBy'])
+          && request.resource.data.note is string
+          && request.resource.data.youtubeUrl is string
+          && request.resource.data.referenceUrl is string
+          && request.resource.data.images is list
+          && request.resource.data.images.size() <= 1
+          && (request.resource.data.images.size() < 1 || (request.resource.data.images[0].data is string && request.resource.data.images[0].data.size() <= 410000))
+          && request.resource.data.mediaUpdatedAt is number
+          && request.resource.data.mediaUpdatedBy == 'registration_portal'
+          && (get(/databases/$(database)/documents/settings/registration_config).data.allowApplicationMediaReplace == true
+            || (get(/databases/$(database)/documents/settings/registration_config).data.allowApplicationMediaAddMissing == true
+              && (request.resource.data.note == resource.data.note || resource.data.note == '')
+              && (request.resource.data.youtubeUrl == resource.data.youtubeUrl || resource.data.youtubeUrl == '')
+              && (request.resource.data.referenceUrl == resource.data.referenceUrl || resource.data.referenceUrl == '')
+              && (request.resource.data.images == resource.data.images || resource.data.images.size() == 0))));
+      allow delete: if isAdmin();
+    }
+
+    match /registrationApplications/{applicationId} {
+      allow read: if isAdmin() || (hasAccessRole('teamLeader') && resource.data.team == get(accessDoc()).data.team);
+      allow create: if false; // Student applications are validated and created by a callable Cloud Function.
+      allow update: if isAdmin() || (hasAccessRole('teamLeader')
+        && registrationsOpen()
+        && resource.data.team == get(accessDoc()).data.team
+        && request.resource.data.team == resource.data.team
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.eventId == resource.data.eventId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decisionByUid', 'decisionByName', 'decisionByRole', 'decisionAt', 'finalizedAt', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /teamRegistrationPolicies/{teamId} {
+      allow read: if true;
+      allow create, update: if isAdmin() || (hasAccessRole('teamLeader')
+        && teamId == get(accessDoc()).data.team
+        && request.resource.data.team == teamId
+        && request.resource.data.changedByUid == request.auth.uid
+        && request.resource.data.mode in ['open', 'unfilled_only', 'waitlist_only', 'closed']);
+      allow delete: if isAdmin();
+    }
+
+    match /studentRegistrationSessions/{sessionId} { allow read, write: if false; }
+    match /registrationVerificationAttempts/{studentId} { allow read, write: if false; }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && hasOnly(['code', 'name', 'section', 'category', 'gender', 'type', 'limit', 'groupSize', 'minimumMembers', 'maximumMembers', 'stage', 'time', 'scheduleDate', 'scheduleDay', 'scheduleDayId', 'scheduleStage', 'scheduleStageId', 'scheduleDuration', 'scheduleEndTime', 'scheduleNotes', 'scheduleOrder', 'scheduleStatus', 'eligibleClasses', 'allowedParticipantTypes', 'allowedRegistrationChannels', 'resultWorkflow', 'resultMethod', 'criteria', 'objectiveRule', 'countRule', 'timeRule', 'multipleJudgeMethod', 'tieBreakMethod', 'gradeMode', 'duration', 'preparationTime', 'description', 'status', 'statusUpdatedAt', 'statusUpdatedByUid', 'validation', 'importMeta', 'scheduleRequirement', 'teamPolicy', 'scoreContribution', 'scoringPolicy', 'scoringOverride', 'maximumMark', 'notes', 'rules', 'updatedAt'])
+        && request.resource.data.name is string
+        && isStringOrMissing('category')
+        && isStringOrMissing('gender')
+        && isStringOrMissing('type')
+        && isNumberOrMissing('limit')
+        && isNumberOrMissing('groupSize')
+        && isNumberOrMissing('minimumMembers')
+        && isNumberOrMissing('maximumMembers')
+        && isStringOrMissing('stage')
+        && isStringOrMissing('time')
+        && isStringOrMissing('scheduleDate')
+        && isStringOrMissing('scheduleDay')
+        && isStringOrMissing('scheduleDayId')
+        && isStringOrMissing('scheduleStage')
+        && isStringOrMissing('scheduleStageId')
+        && isNumberOrMissing('scheduleDuration')
+        && isStringOrMissing('scheduleEndTime')
+        && isStringOrMissing('scheduleNotes')
+        && isNumberOrMissing('scheduleOrder')
+        && isStringOrMissing('scheduleStatus')
+        && (!('allowedParticipantTypes' in request.resource.data) || request.resource.data.allowedParticipantTypes is list)
+        && (!('allowedRegistrationChannels' in request.resource.data) || request.resource.data.allowedRegistrationChannels is list)
+        && isStringOrMissing('resultMethod')
+        && isStringOrMissing('resultWorkflow')
+        && (!('criteria' in request.resource.data) || request.resource.data.criteria is list)
+        && (!('objectiveRule' in request.resource.data) || request.resource.data.objectiveRule is map)
+        && (!('countRule' in request.resource.data) || request.resource.data.countRule is map)
+        && (!('timeRule' in request.resource.data) || request.resource.data.timeRule is map)
+        && (!('eligibleClasses' in request.resource.data) || request.resource.data.eligibleClasses is list)
+        && isStringOrMissing('scheduleRequirement')
+        && isStringOrMissing('teamPolicy')
+        && isStringOrMissing('scoreContribution')
+        && isStringOrMissing('scoringPolicy')
+        && (!('scoringOverride' in request.resource.data) || request.resource.data.scoringOverride is map)
+        && isNumberOrMissing('maximumMark')
+        && isStringOrMissing('notes')
+        && isNumberOrMissing('updatedAt');
+      allow delete: if isAdmin();
+    }
+    match /eventImportSessions/{sessionId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    match /scheduleBreaks/{breakId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && hasOnly(['title', 'category', 'date', 'day', 'dayId', 'startTime', 'endTime', 'stage', 'stageId', 'stageIds', 'stages', 'duration', 'afterEventId', 'order', 'active', 'createdAt', 'updatedAt'])
+        && request.resource.data.title is string
+        && request.resource.data.date is string
+        && isStringOrMissing('category')
+        && request.resource.data.startTime is string
+        && request.resource.data.endTime is string
+        && isStringOrMissing('day')
+        && isStringOrMissing('dayId')
+        && isStringOrMissing('stage')
+        && isStringOrMissing('stageId')
+        && (!('stageIds' in request.resource.data) || request.resource.data.stageIds is list)
+        && (!('stages' in request.resource.data) || request.resource.data.stages is list)
+        && isNumberOrMissing('duration')
+        && isStringOrMissing('afterEventId')
+        && isNumberOrMissing('order')
+        && isNumberOrMissing('createdAt')
+        && isNumberOrMissing('updatedAt')
+        && isBoolOrMissing('active');
+      allow delete: if isAdmin();
+    }
+
+    match /scheduleVersions/{versionId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /registrations/{registrationId} {
+      allow read: if true;
+      allow create: if isAdmin() || (teamLeaderCanWriteRegistration(request.resource.data)
+        && registrationsOpen()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.lastUpdatedByUid == request.auth.uid);
+      allow update: if isAdmin() || (teamLeaderCanWriteRegistration(request.resource.data)
+        && registrationsOpen()
+        && request.resource.data.lastUpdatedByUid == request.auth.uid
+        && ((!('createdByUid' in resource.data)
+              && request.resource.data.createdByUid == request.auth.uid)
+            || request.resource.data.createdByUid == resource.data.createdByUid)
+        && ((!('createdAt' in resource.data)
+              && request.resource.data.createdAt is number)
+            || request.resource.data.createdAt == resource.data.createdAt));
+      allow delete: if isAdmin() || (teamLeaderCanDeleteRegistration(resource.data) && registrationsOpen());
+    }
+
+    match /results/{resultId} {
+      // Anonymous/public clients may only query explicitly published results.
+      // Administrative and publishing workspaces retain access to every state.
+      allow read: if isAdmin() || hasAccessRole('publisher')
+        || resource.data.status == 'published';
+      allow create, update, delete: if isAdmin() || hasAccessRole('publisher');
+    }
+    match /resultRevisions/{revisionId} {
+      allow read: if isAdmin() || hasAccessRole('publisher');
+      allow create, update, delete: if isAdmin() || hasAccessRole('publisher');
+    }
+    match /teamScoreLedgers/{eventId} {
+      allow read: if true;
+      allow create, update: if isAdmin() || hasAccessRole('publisher');
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || hasAccessRole('publisher')
+        || (hasAccessRole('teamLeader')
+          && resource.data.team in ['All', get(accessDoc()).data.team]);
+      allow create: if isAdmin() || hasAccessRole('publisher');
+      allow update, delete: if isAdmin();
+    }
+
+    match /judges/{judgeId} {
+      allow read: if isAdmin() || hasAccessRole('publisher') || isActiveJudge(judgeId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /judgeAssignments/{assignmentId} {
+      allow read: if isAdmin() || hasAccessRole('publisher')
+        || (hasAccessRole('judge') && isActiveJudge(resource.data.judgeId));
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /judgeScores/{scoreId} {
+      // A first draft transaction reads its not-yet-existing score document
+      // before creating it. Authorize that direct get through the assignment ID.
+      allow get: if isAdmin() || hasAccessRole('publisher')
+        || (hasAccessRole('judge')
+          && exists(assignmentDoc(scoreId))
+          && judgeOwnsAssignment(scoreId, get(assignmentDoc(scoreId)).data.judgeId));
+      allow list: if isAdmin() || hasAccessRole('publisher')
+        || (hasAccessRole('judge') && isActiveJudge(resource.data.judgeId));
+      allow create: if isAdmin()
+        || (hasAccessRole('judge')
+          && request.resource.data.assignmentId is string
+          && request.resource.data.judgeId is string
+          && request.resource.data.eventId is string
+          && scoreId == request.resource.data.assignmentId
+          && judgeOwnsAssignment(request.resource.data.assignmentId, request.resource.data.judgeId)
+          && get(assignmentDoc(request.resource.data.assignmentId)).data.eventId == request.resource.data.eventId
+          && request.resource.data.status in ['draft', 'submitted']
+          && request.resource.data.marks is list);
+      allow update: if isAdmin()
+        || (hasAccessRole('judge')
+          && resource.data.status == 'draft'
+          && request.resource.data.status in ['draft', 'submitted']
+          && request.resource.data.assignmentId == resource.data.assignmentId
+          && request.resource.data.judgeId == resource.data.judgeId
+          && request.resource.data.eventId == resource.data.eventId
+          && scoreId == request.resource.data.assignmentId
+          && judgeOwnsAssignment(request.resource.data.assignmentId, request.resource.data.judgeId)
+          && get(assignmentDoc(request.resource.data.assignmentId)).data.eventId == request.resource.data.eventId
+          && request.resource.data.marks is list)
+        || (hasAccessRole('publisher')
+          && resource.data.status == 'submitted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['publishStatus', 'publishedResultId', 'publishedAt'])
+          && request.resource.data.publishStatus in ['published', 'ready', 'archived', 'unpublished']);
+      allow delete: if isAdmin();
+    }
+
+    // Public-safe submission marker: contains no marks, notes or participant data.
+    match /publicJudgingStatuses/{assignmentId} {
+      allow read: if true;
+      allow create: if hasAccessRole('judge')
+        && request.resource.data.keys().hasOnly(['assignmentId', 'eventId', 'status', 'submittedAt'])
+        && request.resource.data.assignmentId == assignmentId
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.submittedAt is number
+        && judgeOwnsAssignment(assignmentId, get(assignmentDoc(assignmentId)).data.judgeId)
+        && get(assignmentDoc(assignmentId)).data.eventId == request.resource.data.eventId;
+      allow update, delete: if isAdmin();
+    }
+
+    match /deletedBackups/{backupId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() || hasAccessRole('publisher');
+      allow create: if isAdmin() || hasAccessRole('publisher');
+      allow update, delete: if isAdmin();
+    }
+
+    match /posterCertificateSources/{sourceId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin()
+        && request.resource.data.key == sourceId
+        && request.resource.data.type in ['text', 'image']
+        && request.resource.data.mode in ['static', 'manual', 'profile'];
+    }
+
+    match /posterCertificateModels/{modelId} {
+      allow read: if isAdmin()
+        || (resource.data.status == 'published'
+          && resource.data.downloadAccess.publicResults == true)
+        || (hasAccessRole('teamLeader')
+          && resource.data.status == 'published'
+          && resource.data.downloadAccess.teamLeader == true)
+        || (hasAccessRole('judge')
+          && resource.data.status == 'published'
+          && resource.data.downloadAccess.judge == true)
+        || (hasAccessRole('publisher')
+          && resource.data.status == 'published'
+          && resource.data.downloadAccess.publisher == true);
+      allow create, update, delete: if isAdmin()
+        && request.resource.data.key == modelId
+        && request.resource.data.background.matches('assets/templates/[a-z0-9-]+\\.png')
+        && request.resource.data.layers is list;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {eventFieldRulesForMode,setupForPreset} from '../fest-config.js';
+import {EVENT_IMPORT_COLUMNS,eventDuplicateKey,eventToFirestore,isEventHeadingRow,normalizeEventRow,parseCriteria,parseEntryRule,suggestEventColumn,validateEvent} from '../event-utils.js';
+assert.equal(suggestEventColumn('മത്സരയിനം'),'name');
+assert.deepEqual(parseEntryRule('5×1','Group'),{membersPerEntry:5,entriesPerTeam:1,ambiguous:false});
+assert.deepEqual(parseEntryRule('2x2','Group'),{membersPerEntry:2,entriesPerTeam:2,ambiguous:false});
+assert.equal(parseEntryRule('6','Group').ambiguous,true);
+const criteria=parseCriteria('Language - 20\nContent: 40\nPresentation = 40');assert.equal(criteria.total,100);assert.equal(criteria.unparsed.length,0);
+const heading=isEventHeadingRow(['BOYS EVENTS']);assert.equal(heading.isHeading,true);assert.equal(heading.contexts.gender,'Boys');
+const event=normalizeEventRow({name:'Speech',category:'Junior',gender:'boy',stage:'ON STAGE',type:'solo',entriesPerTeam:'3',resultMethod:'criteria',criteriaText:'Language - 20; Content - 40; Presentation - 40'},{gender:'Girls'});assert.equal(event.gender,'Boys');assert.equal(event.type,'Single');assert.equal(event.maximumMark,100);
+
+const separateGroup=normalizeEventRow({name:'Team Dance',category:'Junior',gender:'Girls',stage:'On-Stage',type:'Group',entriesPerTeam:'2',membersPerEntry:'3',resultMethod:'manual'});
+assert.equal(separateGroup.entriesPerTeam,2,'separate Entries per Team column stays as team entry limit');
+assert.equal(separateGroup.membersPerEntry,3,'separate Members per Entry column stays as group size');
+assert.equal(separateGroup.entryAmbiguous,undefined,'separate group entry/member columns are not ambiguous');
+const combinedGroup=normalizeEventRow({name:'Group Song',category:'Junior',gender:'Girls',stage:'On-Stage',type:'Group',entriesPerTeam:'3x2',resultMethod:'manual'});
+assert.equal(combinedGroup.membersPerEntry,3,'combined 3x2 format keeps members per entry first');
+assert.equal(combinedGroup.entriesPerTeam,2,'combined 3x2 format keeps entries per team second');
+const setup={participantTypes:['student'],registrationChannels:['admin'],allowedGenders:['Boys','Girls'],categories:['Junior']};const validation=validateEvent({...event,participantTypes:['student'],registrationChannels:['admin']},setup,[]);assert.equal(validation.status,'ready');
+assert.ok(validateEvent(event,setup,[event]).errors.some(error=>error.includes('Duplicate')));
+assert.equal(eventDuplicateKey(event),eventDuplicateKey({...event,code:'OTHER'}));
+assert.equal(normalizeEventRow({...event,rules:'',description:'Legacy description'}).rules,'Legacy description','legacy description migrates into canonical event rules');
+assert.ok(!EVENT_IMPORT_COLUMNS.some(column=>column.key==='description'),'event import exposes one canonical Rules field');
+assert.ok(['rules','resultWorkflow','scheduleRequirement','teamPolicy','scoringPolicy'].every(key=>EVENT_IMPORT_COLUMNS.some(column=>column.key===key)),'form and import operational fields stay aligned');
+const stored=eventToFirestore({...event,minimumMembers:1,maximumMembers:1},{setup,validation});assert.equal(stored.status,'validated');assert.equal(stored.criteria.length,3);assert.equal(stored.resultWorkflow,'judged');assert.equal(stored.minimumMembers,1);assert.equal(stored.maximumMembers,1);
+assert.ok(validateEvent({...event,eligibleClasses:['12']},{...setup,eligibleClasses:['1','2']},[]).errors.includes('Eligible class is not enabled in Master Setup'));
+
+const criteriaOptionalEvent={...event,criteria:[],criteriaUnparsed:[],maximumMark:100};
+const criteriaOptionalValidation=validateEvent(criteriaOptionalEvent,{...setup,eventFieldRules:[{key:'criteriaText',label:'Judging Criteria',requirement:'optional'}]},[]);
+assert.equal(criteriaOptionalValidation.status,'ready','optional criteria can be omitted without blocking event visibility');
+assert.equal(eventToFirestore(criteriaOptionalEvent,{setup,validation:criteriaOptionalValidation}).status,'validated','optional missing criteria stays visible after import/save');
+const criteriaRequiredValidation=validateEvent(criteriaOptionalEvent,{...setup,eventFieldRules:[{key:'criteriaText',label:'Judging Criteria',requirement:'required'}]},[]);
+assert.ok(criteriaRequiredValidation.errors.includes('Judging Criteria is required by Master Setup'),'required criteria still blocks incomplete events');
+const criteriaConditionalValidation=validateEvent(criteriaOptionalEvent,{...setup,eventFieldRules:[{key:'criteriaText',label:'Judging Criteria',requirement:'conditional'}]},[]);
+assert.ok(criteriaConditionalValidation.errors.includes('Judging Criteria is required by Master Setup'),'conditional criteria still applies to criteria-based events');
+assert.ok(validateEvent({...criteriaOptionalEvent,criteria:[{name:'Only',maximumMark:20}]},{...setup,eventFieldRules:[{key:'criteriaText',label:'Judging Criteria',requirement:'optional'}]},[]).errors.some(error=>error.includes('Criteria total')),'provided optional criteria must still total the maximum mark');
+console.log('Event engine runtime checks passed');
+const conditionalSetup={...setup,eventFeatures:{multipleJudges:true},eventFieldRules:[{key:'rules',label:'Rules',requirement:'required'},{key:'timeDirection',label:'Time Direction',requirement:'conditional'}]};
+assert.ok(validateEvent({...event,rules:''},conditionalSetup,[]).errors.includes('Rules is required by Master Setup'));
+assert.ok(!validateEvent({...event,rules:'Rules'},conditionalSetup,[]).errors.includes('Time Direction is required by Master Setup'));
+
+assert.equal(eventFieldRulesForMode('basic').find(rule=>rule.key==='rules').requirement,'optional');assert.ok(eventFieldRulesForMode('basic').filter(rule=>rule.key!=='rules').every(rule=>rule.requirement==='hidden'));
+assert.equal(setupForPreset('simple_direct_fest').eventFieldProfile,'basic');
+assert.equal(setupForPreset('open_registration_fest').eventFieldProfile,'standard');

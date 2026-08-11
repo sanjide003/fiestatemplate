@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data: blob:; font-src 'self' https:; connect-src 'self' https: wss://*.firebaseio.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>Fest Team Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manjari:wght@100;400;700&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+Malayalam:wght@400;700&family=Saira:wght@700&display=swap" rel="stylesheet">
+
+    <!-- ICONS -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Font Awesome for Footer -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Excel & PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', 'Noto Sans Malayalam', sans-serif; background-color: #f8fafc; color: #0f172a; min-height: 100vh; display: flex; flex-direction: column; }
+        html, body, .main-container { touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: auto; }
+        .main-container { -webkit-overflow-scrolling: touch; }
+        .hide { display: none !important; }
+        .touch-target { min-height: 40px; }
+
+        select { appearance: auto; -webkit-appearance: menulist; padding-right: 2rem; }
+
+        /* HEADER (Fixed at top) */
+        .header-wrapper { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 10px 10px 0; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
+        .header-wrapper.visible { opacity: 1; pointer-events: auto; }
+
+        .app-header {
+            pointer-events: auto;
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            border: 1px solid rgba(255,255,255,0.6);
+            position: relative;
+        }
+
+        /* HAMBURGER */
+        .menu-toggle { width: 32px; height: 32px; border: none; background: none; cursor: pointer; position: relative; display: block; flex-shrink: 0; }
+        .menu-toggle span { position: absolute; left: 0px; width: 24px; height: 2.5px; background: #1e293b; border-radius: 2px; transition: 0.3s ease; }
+        .menu-toggle span:nth-child(1) { top: 8px; }
+        .menu-toggle span:nth-child(2) { top: 15px; }
+        .menu-toggle span:nth-child(3) { top: 22px; }
+        .menu-toggle.active span:nth-child(1) { transform: rotate(45deg); top: 15px; }
+        .menu-toggle.active span:nth-child(2) { opacity: 0; }
+        .menu-toggle.active span:nth-child(3) { transform: rotate(-45deg); top: 15px; }
+
+        /* MENU */
+        .popup-menu { position: fixed; background: #ffffff; border-radius: 16px; box-shadow: 0 14px 36px rgba(0,0,0,0.2); min-width: 240px; overflow: hidden; transform: scale(0.9); opacity: 0; pointer-events: none; transition: 0.25s ease; z-index: 90; top: 80px; left: 20px; transform-origin: top left; }
+        .popup-menu.open { transform: scale(1); opacity: 1; pointer-events: auto; }
+        .popup-item { padding: 14px 20px; font-size: 14px; font-weight: 600; color: #334155; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 12px; transition: background 0.2s; }
+        .popup-item:hover { background: #f8fafc; color: #2563eb; }
+        .popup-item.active { background: #eff6ff; color: #2563eb; }
+
+        /* NOTIFICATION DROPDOWN (Fixed Position) */
+        .notif-popup {
+            position: fixed;
+            top: 80px;
+            right: 16px;
+            width: 90vw;
+            max-width: 360px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border: 1px solid #f1f5f9;
+            z-index: 110;
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+            pointer-events: none;
+            transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: top right;
+            display: flex;
+            flex-direction: column;
+            max-height: 80vh;
+        }
+        .notif-popup.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+
+        /* REGISTRATION MODAL (UPDATED - CENTERED & COMPACT) */
+        #reg-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 330;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #reg-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #reg-panel {
+            width: 100%;
+            max-width: 400px;
+            max-height: 85vh;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        #reg-panel.open {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .overlay { position: fixed; inset: 0; display: none; z-index: 80; backdrop-filter: blur(2px); background: rgba(0,0,0,0.1); }
+        .overlay.show { display: block; }
+
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes pulse-highlight { 0% { background-color: #eff6ff; } 50% { background-color: #dbeafe; } 100% { background-color: #ffffff; } }
+        .card-highlight { animation: pulse-highlight 2s ease-out; border-color: #3b82f6 !important; }
+
+        /* LOADER */
+        .loader-screen { position: fixed; inset: 0; background: #ffffff; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease; will-change: opacity; }
+        .loader-wrapper { position: relative; width: 120px; height: 120px; display: flex; justify-content: center; align-items: center; }
+        .loader-ring { position: absolute; inset: -4px; border-radius: 50%; border: 4px solid #f1f5f9; border-top-color: #2563eb; animation: spin 1s linear infinite; z-index: 1; }
+        .loader-logo-circle { position: absolute; width: 100%; height: 100%; border-radius: 50%; background: #fff; overflow: hidden; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .loader-logo-circle img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s; }
+        .loader-logo-circle img.loaded { opacity: 1; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* FOOTER */
+        footer { background: #f9f9f9; padding: 24px 16px; margin-top: auto; border-top: 1px solid #e2e8f0; padding-bottom: 40px; }
+        .follow { text-align: center; }
+        .follow h4 { font-size: 13px; margin-bottom: 10px; font-weight: bold; color: #333; }
+        .socials { display: flex; justify-content: center; gap: 14px; }
+        .socials a { color: #333; font-size: 20px; transition: transform .2s ease; }
+        .socials a:hover { transform: translateY(-2px) scale(1.05); }
+        .footer-bottom { text-align: center; font-size: 12px; margin-top: 14px; color: #777; line-height: 1.5; }
+
+        .compact-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; outline: none; transition: border-color 0.2s; }
+        .main-container {
+    padding-top: 100px !important;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 90px);
+    padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+        }
+        .team-wide-view { position: relative; left: 50%; width: calc(100dvw - 1rem); max-width: calc(100dvw - 1rem); transform: translateX(-50%); }
+        @media (min-width: 768px) { .team-wide-view { width: calc(100dvw - 2rem); max-width: calc(100dvw - 2rem); } }
+        @media (min-width: 1024px) { .team-wide-view { width: calc(100dvw - 3rem); max-width: calc(100dvw - 3rem); } }
+        .team-workspace { overflow: hidden; border: 1px solid rgba(99,102,241,.16); border-radius: 28px; background: linear-gradient(135deg,#f8fbff 0%,#ffffff 46%,#f4f7ff 100%); box-shadow: 0 24px 70px rgba(15,23,42,.08); }
+        .team-workspace-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; border-bottom: 1px solid rgba(148,163,184,.22); background: radial-gradient(circle at top left,rgba(79,70,229,.12),transparent 34%), linear-gradient(90deg,rgba(255,255,255,.96),rgba(239,246,255,.9)); }
+        .team-workspace-kicker { font-size: 10px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; color: #4f46e5; }
+        .team-workspace-title { margin-top: 4px; font-size: clamp(1.25rem,2vw,2rem); line-height: 1.05; font-weight: 950; color: #0f172a; }
+        .team-workspace-subtitle { margin-top: 6px; max-width: 720px; font-size: 12px; font-weight: 700; color: #64748b; }
+        .team-workspace-toolbar { display: grid; gap: 10px; padding: 14px; border-bottom: 1px solid rgba(226,232,240,.9); background: rgba(255,255,255,.9); }
+        .team-workspace-panel { margin: 14px; overflow: hidden; border: 1px solid rgba(226,232,240,.95); border-radius: 22px; background: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.85); }
+        .team-wide-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-gutter: stable both-edges; }
+        .team-wide-scroll table { width: max-content; min-width: 100%; }
+        .team-wide-scroll::-webkit-scrollbar { height: 12px; }
+        .team-wide-scroll::-webkit-scrollbar-thumb { border-radius: 999px; background: #94a3b8; border: 3px solid #f8fafc; }
+        .report-table { border-collapse: collapse; min-width: 1120px; }
+        .report-table th, .report-table td { border: 1px solid #e2e8f0; padding: 4px; text-align: center; vertical-align: middle; break-inside: avoid; page-break-inside: avoid; }
+        .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+        .report-category-break { break-before: page; page-break-before: always; }
+        .report-table th.rotate { height: 120px; white-space: nowrap; vertical-align: bottom; }
+        .report-table th.rotate > div { transform: translate(0px, -5px) rotate(-90deg); width: 20px; margin: 0 auto; }
+        .report-table th.rotate > div > span { padding: 5px 5px; font-size: 10px; }
+        .report-table.plain-report th, .report-table.plain-report td { color: #000 !important; background: #fff !important; border: 1px solid #111 !important; }
+        .report-print-bw, .report-print-bw * { color: #000 !important; background: #fff !important; box-shadow: none !important; text-shadow: none !important; }
+        .report-print-bw table, .report-print-bw th, .report-print-bw td { border-color: #111 !important; }
+        .report-print-bw { padding: 2px !important; }
+        .report-pdf-header { display: grid; grid-template-columns: 1fr 1.4fr 1fr; align-items: center; gap: 8px; border-bottom: 2px solid #111; padding: 0 4px 8px; margin-bottom: 10px; color: #000; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+        .report-print-bw .report-pdf-header { position: fixed; top: 0; left: 0; right: 0; z-index: 10; }
+        .report-print-bw .report-table { margin-top: 78px; }
+        .report-pdf-header .report-meta-left { text-align: left; font-size: 16px; font-weight: 900; text-transform: uppercase; }
+        .report-pdf-header .report-title { text-align: center; font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+        .report-pdf-header .report-logo { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; justify-self: end; }
+        .report-pdf-header .report-team-right { margin-top: 3px; text-align: center; font-size: 20px; line-height: 1.1; font-weight: 900; text-transform: uppercase; }
+        .report-status-short { font-weight: 900; letter-spacing: .04em; }
+        .stat-card { background: white; border-radius: 16px; padding: 16px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; overflow: hidden; }
+        .dash-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        .badge-count { position: absolute; top: -2px; right: -2px; background: #ef4444; color: white; font-size: 10px; font-weight: bold; height: 18px; min-width: 18px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="text-slate-900 text-base">
+
+    <!-- SPLASH SCREEN -->
+    <div class="loader-screen" id="loader-screen">
+        <div class="loader-wrapper" id="loader-wrapper">
+            <div class="loader-ring" id="loader-ring"></div>
+            <div class="loader-logo-circle" id="moving-logo">
+                 <img src="" id="loader-img-tag" alt="Fest Logo">
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERNAL SPINNER -->
+    <div id="app-loader" class="fixed inset-0 bg-white z-[1000] flex flex-col items-center justify-center hide">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-4 border-blue-600 mb-4"></div>
+        <p class="text-blue-600 font-bold animate-pulse text-sm">Processing...</p>
+    </div>
+
+    <!-- OVERLAY -->
+    <div class="overlay" id="overlay"></div>
+    <div id="toast-container" class="fixed bottom-6 right-6 left-6 md:left-auto z-[500] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- HEADER -->
+    <div class="header-wrapper" id="main-header">
+        <header class="app-header relative">
+            <!-- Left -->
+            <div class="flex items-center gap-3 z-20">
+                <button class="menu-toggle" id="menuBtn"><span></span><span></span><span></span></button>
+                <div class="flex flex-col">
+                    <span class="text-lg font-black text-slate-900 leading-none truncate max-w-[140px]" id="header-team-name">Team</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-tight" id="page-title">Dashboard</span>
+                </div>
+            </div>
+            <!-- Center -->
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-center pointer-events-none">
+                <h2 class="font-black text-blue-600 text-sm sm:text-base leading-tight uppercase tracking-tight" id="header-fest-name">FEST NAME</h2>
+            </div>
+            <!-- Right -->
+            <div class="flex items-center gap-3 ml-auto z-20">
+                <div class="w-9 h-9 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden flex-shrink-0 p-0.5">
+                    <img src="" id="header-logo-img" class="w-full h-full object-cover rounded-md" alt="Logo">
+                </div>
+                <!-- Notification Bell with Count -->
+                <button id="notifBtn" onclick="toggleNotifications()" class="relative p-2 rounded-full hover:bg-slate-100 transition">
+                    <i data-lucide="bell" class="w-6 h-6 text-slate-700"></i>
+                    <span id="notif-badge" class="badge-count hidden">0</span>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- POPUP MENU -->
+    <div class="popup-menu" id="popupMenu">
+        <div onclick="setTeamSubTab('dashboard')" id="nav-dashboard" class="popup-item active"><i data-lucide="layout-dashboard" class="w-5 h-5"></i><span data-nav-label>Dashboard</span></div>
+        <div onclick="setTeamSubTab('selfreg')" id="nav-selfreg" class="popup-item"><i data-lucide="user-check" class="w-5 h-5"></i><span data-nav-label>Self Registration</span></div>
+        <div onclick="setTeamSubTab('available')" id="nav-available" class="popup-item"><i data-lucide="calendar-days" class="w-5 h-5"></i><span data-nav-label>Events</span></div>
+        <div onclick="setTeamSubTab('myreg')" id="nav-myreg" class="popup-item"><i data-lucide="clipboard-check" class="w-5 h-5"></i><span data-nav-label>My Registrations</span></div>
+        <div onclick="setTeamSubTab('schedule')" id="nav-schedule" class="popup-item"><i data-lucide="calendar-clock" class="w-5 h-5"></i><span data-nav-label>My Schedule</span></div>
+        <div onclick="setTeamSubTab('certificates')" id="nav-certificates" class="popup-item"><i data-lucide="badge-check" class="w-5 h-5"></i><span data-nav-label>Certificates</span></div>
+        <div onclick="setTeamSubTab('report')" id="nav-report" class="popup-item"><i data-lucide="file-chart-column" class="w-5 h-5"></i><span data-nav-label>Reports</span></div>
+        <div onclick="openTeamProfile()" class="popup-item"><i data-lucide="contact" class="w-5 h-5"></i><span>Profile</span></div>
+        <div onclick="logout()" class="popup-item border-t border-slate-100 mt-1 text-red-500"><i data-lucide="log-out" class="w-5 h-5"></i> Logout</div>
+    </div>
+
+    <!-- NOTIFICATION DROPDOWN -->
+    <div id="notif-popup" class="notif-popup">
+        <div class="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between rounded-t-2xl shrink-0">
+            <h3 class="font-bold text-sm text-slate-800">Notifications</h3>
+            <button onclick="toggleNotifications()" class="p-1 hover:bg-slate-200 rounded-full"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="flex p-2 gap-2 bg-white border-b border-slate-50 shrink-0">
+            <button onclick="filterNotifs('all')" id="n-btn-all" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold bg-red-600 text-white transition">All</button>
+            <button onclick="filterNotifs('alert')" id="n-btn-alert" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 transition">Alerts</button>
+            <button onclick="filterNotifs('result')" id="n-btn-result" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 transition">Results</button>
+        </div>
+
+        <div id="notif-list" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50 rounded-b-2xl"></div>
+    </div>
+
+    <!-- MAIN APP CONTENT -->
+    <div id="app-layout" class="flex-1 overflow-y-auto p-3 md:p-6 lg:p-8 relative scroll-smooth max-w-5xl mx-auto w-full main-container opacity-0 transition-opacity duration-300 pointer-events-none">
+
+        <!-- DASHBOARD TAB -->
+        <div id="tview-dashboard" class="tab-view space-y-5 animate-fade-in">
+            <!-- Points Card -->
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div class="relative z-10 flex justify-between items-center">
+                    <div><p class="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Total Points</p><h1 class="text-4xl font-black tracking-tight" id="dash-points">0</h1></div>
+                    <div class="text-right"><div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10"><p class="text-xs font-bold opacity-80 uppercase">Position</p><p class="text-2xl font-black" id="dash-rank"># -</p></div></div>
+                </div>
+                <i data-lucide="trophy" class="absolute -bottom-6 -right-6 w-36 h-36 text-white opacity-10 transform rotate-12"></i>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="stat-card border-l-4 border-l-blue-500"><p class="text-slate-400 text-[10px] font-bold uppercase">Total Students</p><h3 class="text-xl font-bold text-slate-800" id="dash-std-total">0</h3></div>
+                <div class="stat-card border-l-4 border-l-emerald-500"><p class="text-slate-400 text-[10px] font-bold uppercase">Participating</p><h3 class="text-xl font-bold text-emerald-600" id="dash-std-reg">0</h3></div>
+            </div>
+
+            <!-- Category Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 bg-slate-50"><h4 class="font-bold text-slate-800 flex items-center gap-2 text-sm"><i data-lucide="layers" class="w-4 h-4 text-blue-500"></i> Event Status</h4></div>
+                <div class="dash-table-container"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-slate-50 text-slate-500 font-bold uppercase"><tr><th class="px-4 py-3">Category</th><th class="px-4 py-3 text-center">Total</th><th class="px-4 py-3 text-center text-green-600">Done</th><th class="px-4 py-3 text-center text-orange-500">Pending</th></tr></thead><tbody id="dash-cat-table" class="divide-y divide-slate-100 font-medium text-slate-700"></tbody></table></div>
+            </div>
+
+            <!-- Winners & Alerts -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="medal" class="w-4 h-4 text-amber-500"></i> Winners Tally</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-xl border border-yellow-100"><span class="text-xs font-bold text-yellow-800 uppercase">First Prize</span><div class="text-right"><span class="text-lg font-black text-yellow-600" id="dash-first">0</span> <span class="text-[10px] text-yellow-500 font-bold" id="dash-first-pts">(0 pts)</span></div></div>
+                        <div class="flex justify-between items-center p-3 bg-slate-100 rounded-xl border border-slate-200"><span class="text-xs font-bold text-slate-600 uppercase">Second Prize</span><div class="text-right"><span class="text-lg font-black text-slate-500" id="dash-second">0</span> <span class="text-[10px] text-slate-400 font-bold" id="dash-second-pts">(0 pts)</span></div></div>
+                        <div class="flex justify-between items-center p-3 bg-orange-50 rounded-xl border border-orange-100"><span class="text-xs font-bold text-orange-700 uppercase">Third Prize</span><div class="text-right"><span class="text-lg font-black text-orange-600" id="dash-third">0</span> <span class="text-[10px] text-orange-500 font-bold" id="dash-third-pts">(0 pts)</span></div></div>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="bell" class="w-4 h-4 text-red-500"></i> Latest Alerts</h4>
+                        <button onclick="toggleNotifications()" class="text-xs font-bold text-blue-600 hover:underline">View All</button>
+                    </div>
+                    <div id="dash-notif-preview" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTHER TABS -->
+        <div id="tview-selfreg" class="tab-view hidden w-full space-y-4 team-wide-view">
+            <section class="team-workspace">
+                <div class="team-workspace-hero">
+                    <div>
+                        <p class="team-workspace-kicker">Team application desk</p>
+                        <h3 class="team-workspace-title">Self Registration Applications</h3>
+                        <p id="team-application-policy-text" class="team-workspace-subtitle">Control applications for your team without affecting other teams.</p>
+                    </div>
+                    <div class="flex w-full flex-col gap-2 rounded-2xl border border-indigo-100 bg-white/90 p-3 shadow-sm sm:w-auto sm:min-w-[320px] sm:flex-row sm:items-center">
+                        <select id="team-application-mode" class="min-h-11 flex-1 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"><option value="open">Open</option><option value="unfilled_only">Unfilled only</option><option value="waitlist_only">Waitlist only</option><option value="closed">Closed</option></select>
+                        <button onclick="saveTeamApplicationPolicy()" class="min-h-11 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-indigo-600/20">Save</button>
+                    </div>
+                </div>
+                <div class="team-workspace-toolbar md:grid-cols-[minmax(240px,2fr)_minmax(180px,1fr)_minmax(180px,1fr)_minmax(190px,auto)_auto]">
+                    <input id="team-application-search" oninput="renderTeamApplications()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Search student / chest / event" dir="auto">
+                    <select id="team-application-status-filter" onchange="renderTeamApplications()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="not_requested">Not requested</option></select>
+                    <select id="team-application-category-filter" onchange="renderTeamApplications()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 select-cat-filter"></select>
+                    <label class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600"><input id="team-application-include-unrequested" type="checkbox" onchange="renderTeamApplications()" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"> Not requested</label>
+                    <span id="team-application-count" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-50 px-4 text-xs font-black text-indigo-700">0</span>
+                </div>
+                <div class="team-workspace-panel">
+                    <div id="team-applications-list" class="team-wide-scroll w-full"></div>
+                </div>
+            </section>
+        </div>
+
+        <div id="tview-available" class="tab-view hidden space-y-4">
+            <div id="event-registration-lock-status" class="hidden rounded-xl border px-4 py-3 text-xs font-black"></div>
+
+
+            <div class="flex flex-col sm:flex-row justify-end gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm sticky top-0 z-10">
+                <div class="relative flex-1"><i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i><input id="filter-event-search" oninput="renderTeamEvents()" class="compact-input bg-white pl-9" placeholder="Search events..." dir="auto"></div>
+                <select id="filter-event-stage" onchange="renderTeamEvents()" class="compact-input bg-white font-bold text-slate-600 w-full sm:w-auto"><option value="">All Stages</option><option value="On-Stage">On-Stage</option><option value="Off-Stage">Off-Stage</option></select>
+                <select id="filter-event-cat" onchange="renderTeamEvents()" class="compact-input bg-white font-bold text-slate-600 w-full sm:w-auto select-cat-filter"></select>
+                <select id="filter-event-gender" onchange="renderTeamEvents()" class="compact-input bg-white font-bold text-slate-600 w-full sm:w-auto"><option value="">All Genders</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><select id="filter-event-status" onchange="renderTeamEvents()" class="compact-input bg-white font-bold text-slate-600 w-full sm:w-auto"><option value="">All Status</option><option value="filled">Filled</option><option value="partial">Partially Filled</option><option value="empty">Not Started</option><option value="overloaded">Over Limit</option><option value="pending_application">Pending Approval</option></select>
+            </div>
+            <div id="team-events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20"></div>
+        </div>
+
+        <div id="tview-myreg" class="tab-view hidden space-y-4">
+            <div class="flex flex-col md:flex-row gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm sticky top-0 z-10">
+                <div class="relative flex-1"><i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i><input type="text" id="myreg-search" onkeyup="renderStudentRegs()" placeholder="Search student..." class="compact-input pl-9 bg-white" dir="auto"></div>
+                <select id="myreg-cat-filter" onchange="renderStudentRegs()" class="compact-input bg-white font-bold text-slate-600 w-full md:w-1/3 select-cat-filter"></select>
+                <select id="myreg-gender-filter" onchange="renderStudentRegs()" class="compact-input bg-white font-bold text-slate-600 w-full md:w-1/3"><option value="">All Genders</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select>
+            </div>
+            <div id="myreg-student-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-20"></div>
+        </div>
+
+
+        <div id="tview-schedule" class="tab-view hidden space-y-4">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm sticky top-0 z-10 grid grid-cols-1 sm:grid-cols-5 gap-2">
+                <select id="team-schedule-category" onchange="renderTeamSchedule(true)" class="compact-input bg-white font-bold text-slate-600"><option value="">All Categories</option></select>
+                <select id="team-schedule-date" onchange="renderTeamSchedule(true)" class="compact-input bg-white font-bold text-slate-600"><option value="">All Dates</option></select>
+                <select id="team-schedule-gender" onchange="renderTeamSchedule(true)" class="compact-input bg-white font-bold text-slate-600"><option value="">All Genders</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select>
+                <input id="team-schedule-search" oninput="renderTeamSchedule(true)" class="compact-input bg-white" placeholder="Search schedule..." dir="auto">
+                <select id="team-schedule-page-size" onchange="changeTeamSchedulePageSize(this.value)" class="compact-input bg-white font-bold text-slate-600" aria-label="Schedule rows per page"><option value="30" selected>30 per page</option><option value="50">50 per page</option><option value="80">80 per page</option><option value="100">100 per page</option><option value="130">130 per page</option><option value="150">150 per page</option><option value="200">200 per page</option></select>
+            </div>
+            <div id="team-next-schedule" class="space-y-3"></div>
+            <div id="team-schedule-list" class="space-y-4 pb-20"></div>
+            <div id="team-schedule-pagination" class="hidden items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"></div>
+        </div>
+
+        <div id="tview-certificates" class="tab-view hidden space-y-4"><section class="rounded-2xl border bg-white p-5 shadow-sm"><h3 class="font-black text-slate-900">Certificates & Posters</h3><p class="text-xs font-bold text-slate-500">Published documents enabled by the administrator for your team.</p><div id="team-template-documents" class="mt-4 grid gap-3 md:grid-cols-2"></div></section></div>
+
+        <div id="tview-report" class="tab-view hidden w-full space-y-4 team-wide-view">
+            <section class="team-workspace">
+                <div class="team-workspace-hero">
+                    <div>
+                        <p class="team-workspace-kicker">Team report centre</p>
+                        <h3 class="team-workspace-title">Participation & Self Registration Reports</h3>
+                        <p class="team-workspace-subtitle">Generate full-width Malayalam-friendly tables, gender-aware columns, CSV exports and print-ready PDFs.</p>
+                    </div>
+                    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+                        <button onclick="downloadReportPDF()" class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs font-black text-red-600 transition hover:bg-red-100 sm:flex-none"><i data-lucide="file-down" class="w-4 h-4"></i> PDF</button>
+                        <button onclick="downloadReportExcel()" class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-600 transition hover:bg-emerald-100 sm:flex-none"><i data-lucide="sheet" class="w-4 h-4"></i> CSV</button>
+                    </div>
+                </div>
+                <div class="team-workspace-toolbar md:grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_minmax(160px,.8fr)_minmax(160px,.8fr)_minmax(190px,.9fr)]">
+                    <select id="report-type-select" onchange="renderReportTable()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"><option value="participation">Participation Report</option><option value="selfreg">Self Registration Requests</option></select>
+                    <select id="report-cat-select" onchange="renderReportTable()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 select-cat"></select>
+                    <select id="report-gender-filter" onchange="renderReportTable()" class="min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"><option value="">All Genders</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select>
+                    <select id="report-status-filter" onchange="renderReportTable()" class="hidden min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                    <select id="report-selfreg-scope-filter" onchange="renderReportTable()" class="hidden min-h-11 rounded-xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"><option value="requesters">Requesters only</option><option value="all">All students status</option><option value="not_requested">Not requested only</option></select>
+                </div>
+                <div class="team-workspace-panel">
+                    <div class="team-wide-scroll min-h-[520px] bg-white p-2" id="report-print-area">
+                        <div class="hidden print-header report-pdf-header">
+                            <div class="report-meta-left" id="print-category-name"></div>
+                            <div class="report-title" id="print-report-title">Participation Report</div>
+                            <img class="report-logo hidden" id="print-report-logo" alt="Fest logo">
+                            <div class="report-team-right" id="print-team-name"></div>
+                        </div>
+                        <table class="text-xs text-left report-table" id="report-table-content"></table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="follow"><h4>FOLLOW US</h4><div class="socials" id="social-links"><div class="flex gap-2 justify-center opacity-50"><div class="w-8 h-8 bg-slate-200 rounded-full"></div><div class="w-8 h-8 bg-slate-200 rounded-full"></div></div></div></div>
+        <div class="footer-bottom">&copy; <span data-current-year></span> <span id="footer-fest-name">Fest Name</span> media team. All Rights Reserved.<br><a href="https://www.instagram.com/muhammed_sanjide_p" target="_blank" rel="noopener noreferrer">Powered by hadi mahiri faizy</a></div>
+    </footer>
+
+    <!-- UPDATED REGISTRATION MODAL - COMPACT & CENTERED -->
+    <div id="reg-modal" class="hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeRegModal()"></div>
+        <div id="reg-panel">
+            <!-- Header with Title and Action Buttons -->
+            <div class="p-4 bg-white border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800 leading-tight" id="reg-modal-title">Event Name</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mt-0.5"><span id="reg-modal-slot">Entry 1</span> • <span id="reg-modal-limit">Max 1</span> • <span id="reg-counter">0/0</span></p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="submitRegistration()" class="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition shadow-sm border border-emerald-100" title="Confirm Registration">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="closeRegModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition shadow-sm border border-red-100" title="Close">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student List -->
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+                <div class="mb-3">
+                    <h4 class="font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-2">Select Students</h4>
+                    <div id="reg-student-list" class="space-y-2 max-h-[55vh] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STUDENT DETAILS MODAL -->
+    <div id="std-events-modal" class="fixed inset-0 z-[250] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeStdEventsModal()"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm relative z-10 overflow-hidden flex flex-col max-h-[80vh] animate-fade-in">
+            <div class="p-5 bg-blue-600 text-white shrink-0">
+                <h3 class="font-bold text-lg" id="std-events-name">Student Name</h3>
+                <p class="text-blue-100 text-xs font-bold uppercase mt-1" id="std-events-info">Chest No: 101 • Senior</p>
+                <button onclick="closeStdEventsModal()" class="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto bg-slate-50 flex-1 space-y-3" id="std-events-list"></div>
+        </div>
+    </div>
+
+    <!-- SCHEDULE PARTICIPANTS MODAL -->
+    <div id="schedule-participants-modal" class="fixed inset-0 z-[260] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeScheduleParticipants()"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
+            <div class="p-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shrink-0">
+                <h3 class="font-black text-xl pr-10" id="schedule-participants-title">Program</h3>
+                <p class="text-indigo-100 text-xs font-bold uppercase mt-1" id="schedule-participants-info"></p>
+                <button onclick="closeScheduleParticipants()" class="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition" aria-label="Close participant list"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto bg-slate-50 flex-1 space-y-3" id="schedule-participants-list"></div>
+        </div>
+    </div>
+
+    <!-- TEAM PROFILE MODAL -->
+    <div id="team-profile-modal" class="fixed inset-0 z-[310] hidden items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="team-profile-name">
+        <button onclick="closeTeamProfile()" class="absolute inset-0" aria-label="Close team leader profile"></button>
+        <article class="relative z-10 aspect-[3/4] w-full max-w-[390px] overflow-hidden rounded-[2.25rem] bg-white text-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.45)] ring-4 ring-white/15">
+            <div class="absolute inset-x-0 top-0 h-[29%] bg-[#000703]"></div>
+            <div class="absolute inset-x-0 top-[29%] h-[61%] bg-white"></div>
+            <div class="absolute inset-x-0 bottom-0 h-[10%] bg-[#000703]"></div>
+            <div class="absolute bottom-0 right-0 h-[7.1%] w-[32%] bg-[#24aee4]"></div>
+            <div class="absolute bottom-0 left-[58%] h-[10%] w-[26%] bg-white" style="clip-path: polygon(0 0, 38% 0, 100% 100%, 62% 100%);"></div>
+
+            <div class="absolute left-1/2 top-[14.5%] z-10 aspect-square w-[48%] -translate-x-1/2 rounded-full bg-[#24aee4] p-[4.6%] shadow-[0_18px_42px_rgba(36,174,228,0.34)]">
+                <div class="h-full w-full overflow-hidden rounded-full bg-white">
+                    <img id="team-profile-photo" class="h-full w-full object-cover opacity-0 transition-opacity duration-300" alt="Team leader profile">
+                </div>
+            </div>
+
+            <div class="absolute left-6 right-6 top-[50%] z-10 text-center">
+                <p id="team-profile-role" class="text-[10px] font-black uppercase tracking-[.28em] text-[#24aee4]">Team Leader</p>
+                <h2 id="team-profile-name" class="mt-2 truncate text-3xl font-black text-slate-950">Team Leader</h2>
+                <p id="team-profile-username" class="mt-1 truncate text-sm font-bold text-slate-500">@leader</p>
+                <div class="mt-6 grid grid-cols-3 gap-2 text-xs">
+                    <div><p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Team</p><p id="team-profile-team" class="mt-1 truncate font-black text-slate-800">—</p></div>
+                    <div><p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Access</p><p id="team-profile-gender" class="mt-1 truncate font-black text-slate-800">Both</p></div>
+                    <div><p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Phone</p><p id="team-profile-phone" class="mt-1 truncate font-black text-slate-800">—</p></div>
+                </div>
+                <p id="team-profile-fest" class="mt-6 truncate text-[10px] font-black uppercase tracking-[.2em] text-slate-400">Fest</p>
+                <img id="team-profile-logo" class="mx-auto mt-2 h-8 w-8 rounded-md object-cover opacity-80" alt="Fest logo">
+            </div>
+
+            <button onclick="closeTeamProfile()" class="absolute right-4 top-4 z-20 rounded-full bg-white/10 p-2 text-white shadow-lg ring-1 ring-white/20 hover:bg-white/20" aria-label="Close profile"><i data-lucide="x" class="h-4 w-4"></i></button>
+        </article>
+    </div>
+
+    <div id="confirm-modal" class="fixed inset-0 z-[400] bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 transform scale-100 transition-all">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 text-center">Confirm Action</h3>
+            <p class="text-slate-500 text-sm mb-5 text-center" id="confirm-msg">Are you sure?</p>
+            <div class="flex gap-3">
+                <button id="confirm-cancel" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-bold transition flex-1">Cancel</button>
+                <button id="confirm-ok" class="px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 shadow-lg shadow-red-500/30 transition flex-1">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="team-event-info-dialog" class="fixed inset-0 z-[285] hidden items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm"><article class="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header class="flex items-center justify-between border-b p-4"><div><p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Event Information</p><h2 id="team-event-info-title" class="mt-1 text-lg font-black text-slate-900"></h2></div><button onclick="closeTeamEventInfo()" class="rounded-full bg-slate-100 p-2" aria-label="Close event information"><i data-lucide="x" class="h-5 w-5"></i></button></header><div id="team-event-info-body" class="min-h-0 flex-1 space-y-3 overflow-y-auto p-4"></div><footer class="border-t p-3 text-right"><button onclick="closeTeamEventInfo()" class="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-black text-white">Close</button></footer></article></div>
+    <div id="team-application-detail-dialog" class="fixed inset-0 z-[270] hidden place-items-center bg-slate-950/75 p-3 backdrop-blur-sm"><article class="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header class="flex flex-wrap items-start justify-between gap-3 border-b p-4"><div><p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Application Detail</p><h2 class="mt-1 text-lg font-black text-slate-900">Self Registration</h2></div><div id="team-application-detail-actions" class="flex flex-wrap items-center justify-end gap-2"><button onclick="closeTeamApplicationDetail()" class="rounded-full bg-slate-100 p-2" aria-label="Close application detail"><i data-lucide="x" class="h-5 w-5"></i></button></div></header><div id="team-application-detail-body" class="min-h-0 flex-1 overflow-y-auto p-4"></div></article></div>
+    <div id="team-event-card-dialog" class="fixed inset-0 z-[265] hidden place-items-center bg-slate-950/75 p-3 backdrop-blur-sm"><article class="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header class="flex flex-wrap items-start justify-between gap-3 border-b p-4"><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="text-[10px] font-black uppercase tracking-widest text-blue-500">Event Card View</p><span id="team-event-card-status"></span></div><h2 id="team-event-card-title" class="mt-1 text-lg font-black text-slate-900"></h2><div id="team-event-card-meta" class="mt-2 flex flex-wrap gap-1.5"></div></div><button onclick="closeTeamEventCardView()" class="rounded-full bg-slate-100 p-2" aria-label="Close event card view"><i data-lucide="x" class="h-5 w-5"></i></button></header><div id="team-event-card-body" class="min-h-0 flex-1 overflow-y-auto p-4"></div></article></div>
+    <div id="team-template-generator" class="fixed -left-[9999px] top-0 w-[1123px] h-[794px]"></div>
+
+    <script type="module">
+        import { db, auth } from './firebase-config.js';
+        import { eventContributesToTeamScore, normalizeFestSetup, scheduleEnabled } from './fest-config.js';
+        import { normalizeBranding, brandingName, cacheBranding, clearBrandingCache, applyBase64Image } from './branding-config.js';
+        import { normalizePosterCertificateModel as normalizeTemplate, renderPosterCertificate as renderTemplate, templateAvailableOn } from './poster-certificate-engine.js';
+        import { normalizeRegistrationConfig, normalizeTeamRegistrationPolicy, capacityState, participationUsage, participationLimitDecision } from './registration-utils.js';
+        import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, updateDoc, getDocs, query, where, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+        const teamEscape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        let students = [], events = [], registrations = [], categories = [], teams = [], teamDisplayNames = {}, categoryDisplayNames = {}, notifications = [], results = [], templates = [], scheduleBreaks = [], registrationApplications = [], registrationRequests = [];
+        const teamLabel=value=>String(teamDisplayNames?.[value]||value||'');
+        const categoryLabel=value=>value==='General'?'General':String(categoryDisplayNames?.[value]||value||'');
+        const studentGender = (student) => student?.gender || 'Boys';
+        const eventGender = (event) => event?.gender || 'Both';
+        const isEligibleForEventGender = (student, event) => eventGender(event) === 'Both' || studentGender(student) === eventGender(event);
+        let currentTeam = '', regModalData = null, currentLeaderProfile = null;
+        const leaderGenderScope = () => ['Boys', 'Girls', 'Both'].includes(currentLeaderProfile?.genderScope) ? currentLeaderProfile.genderScope : 'Both';
+        const leaderCanManageStudent = student => leaderGenderScope() === 'Both' || studentGender(student) === leaderGenderScope();
+        const leaderCanViewEvent = event => leaderGenderScope() === 'Both' || eventGender(event) === 'Both' || eventGender(event) === leaderGenderScope();
+        const scopedTeamStudents = () => students.filter(student => student.team === currentTeam && leaderCanManageStudent(student));
+        const applyLeaderGenderFilter = (selectId) => {
+            const select = document.getElementById(selectId); if(!select) return;
+            const scope = leaderGenderScope();
+            const old=select.value;select.innerHTML='<option value="">All Genders</option>'+festSetup.allowedGenders.map(gender=>`<option value="${gender}">${gender}</option>`).join('');if(festSetup.allowedGenders.includes(old))select.value=old;
+            Array.from(select.options).forEach(option => { if(option.value && scope !== 'Both') option.hidden = option.value !== scope; });
+            if(scope !== 'Both') { select.value = scope; select.disabled = true; } else select.disabled = false;
+        };
+        let teamAuthRedirecting = false;
+        let currentTab = 'dashboard';
+        let teamSchedulePage = 1;
+        let teamSchedulePageSize = 30;
+        let scheduleConfig = {}, festSetup = normalizeFestSetup(), registrationConfig = normalizeRegistrationConfig(), teamRegistrationPolicy = normalizeTeamRegistrationPolicy();
+        const applyFestCapabilities = () => { const show=scheduleEnabled(festSetup)&&festSetup.publicModules.schedule!==false; document.getElementById('nav-schedule')?.classList.toggle('hidden',!show); document.getElementById('tview-schedule')?.classList.toggle('hidden',!show); if(!show&&currentTab==='schedule') setTeamSubTab('dashboard'); };
+        let homeConfig = {};
+        let publicConfig = {};
+        let isSplashDone = false;
+        let activeNotifFilter = 'all';
+        let registrationApplicationUnsubscribe = null, registrationRequestUnsubscribe = null, teamPolicyUnsubscribe = null;
+        const subscribeAdvancedRegistration = () => {
+            registrationApplicationUnsubscribe?.();
+            registrationRequestUnsubscribe?.();
+            teamPolicyUnsubscribe?.();
+            registrationApplicationUnsubscribe = onSnapshot(query(collection(db, 'registrationApplications'), where('team', '==', currentTeam)), snap => {
+                registrationApplications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                window.renderTeamApplications();
+                window.renderTeamEvents();
+            });
+            registrationRequestUnsubscribe = onSnapshot(query(collection(db, 'registrationRequests'), where('team', '==', currentTeam)), snap => {registrationRequests=snap.docs.map(d=>({id:d.id,...d.data(),recordSource:'request'}));window.renderTeamApplications();window.renderTeamEvents()});
+            teamPolicyUnsubscribe = onSnapshot(doc(db, 'teamRegistrationPolicies', currentTeam), snap => {
+                teamRegistrationPolicy = normalizeTeamRegistrationPolicy(snap.exists() ? snap.data() : {});
+                window.renderTeamApplications();
+            });
+        };
+
+        const menuBtn = document.getElementById("menuBtn");
+        const popupMenu = document.getElementById("popupMenu");
+        const overlay = document.getElementById("overlay");
+
+        menuBtn.addEventListener("click", () => {
+            document.getElementById('notif-popup').classList.remove('open');
+            menuBtn.classList.toggle("active"); popupMenu.classList.toggle("open");
+            if(popupMenu.classList.contains("open")) overlay.classList.add("show"); else overlay.classList.remove("show");
+        });
+
+        overlay.addEventListener("click", () => {
+            menuBtn.classList.remove("active");
+            popupMenu.classList.remove("open");
+            overlay.classList.remove("show");
+            document.getElementById('notif-popup').classList.remove('open');
+            closeRegModal();
+        });
+
+        window.openTeamProfile = () => {
+            if(!currentLeaderProfile) return showToast('Team leader profile is still loading', 'error');
+            const festName = [homeConfig.festName1, homeConfig.festName2].filter(Boolean).join(' ') || 'Fest';
+            document.getElementById('team-profile-fest').textContent = festName;
+            document.getElementById('team-profile-name').textContent = currentLeaderProfile.displayName || currentLeaderProfile.username || 'Team Leader';
+            document.getElementById('team-profile-username').textContent = `@${currentLeaderProfile.username || 'leader'}`;
+            document.getElementById('team-profile-role').textContent = currentLeaderProfile.title || 'Team Leader';
+            document.getElementById('team-profile-team').textContent = currentTeam || currentLeaderProfile.team || '—';
+            document.getElementById('team-profile-gender').textContent = leaderGenderScope();
+            document.getElementById('team-profile-phone').textContent = currentLeaderProfile.phone || '—';
+            const logo = document.getElementById('team-profile-logo');applyBase64Image(logo,homeConfig.logoUrl);
+            const photo = document.getElementById('team-profile-photo');
+            const fallback = `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(currentLeaderProfile.displayName || currentLeaderProfile.username || 'Leader')}`;
+            if(photo) { photo.classList.add('opacity-0'); photo.onload = () => photo.classList.remove('opacity-0'); photo.onerror = () => { photo.onerror = null; photo.src = fallback; }; photo.src = currentLeaderProfile.photoUrl || fallback; }
+            menuBtn.classList.remove('active'); popupMenu.classList.remove('open'); overlay.classList.remove('show');
+            const modal = document.getElementById('team-profile-modal'); modal.classList.remove('hidden'); modal.classList.add('flex');
+            window.lucide?.createIcons?.();
+        };
+
+        window.closeTeamProfile = () => {
+            const modal = document.getElementById('team-profile-modal'); modal.classList.add('hidden'); modal.classList.remove('flex');
+        };
+
+        document.addEventListener('keydown', event => { if(event.key === 'Escape') window.closeTeamProfile(); });
+
+        // SPLASH LOGIC
+        const runSplashAnimation = () => {
+            const loaderScreen = document.getElementById('loader-screen');
+            if(loaderScreen && !isSplashDone) {
+                setTimeout(() => {
+                    const movingLogo = document.getElementById('moving-logo');
+                    const targetBox = null;
+                    const loaderRing = document.getElementById('loader-ring');
+
+                    if(movingLogo && targetBox && homeConfig.logoUrl) {
+                        loaderRing.classList.add('ring-hidden');
+                        const startRect = movingLogo.getBoundingClientRect();
+                        const targetRect = targetBox.getBoundingClientRect();
+
+                        movingLogo.style.transition = 'none';
+                        movingLogo.style.position = 'fixed';
+                        movingLogo.style.left = startRect.left + 'px';
+                        movingLogo.style.top = startRect.top + 'px';
+                        movingLogo.style.width = startRect.width + 'px';
+                        movingLogo.style.height = startRect.height + 'px';
+                        movingLogo.style.margin = '0';
+                        movingLogo.offsetHeight;
+
+                        movingLogo.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                        requestAnimationFrame(() => {
+                            movingLogo.style.left = targetRect.left + 'px';
+                            movingLogo.style.top = targetRect.top + 'px';
+                            movingLogo.style.width = targetRect.width + 'px';
+                            movingLogo.style.height = targetRect.height + 'px';
+                            movingLogo.style.borderRadius = '24px';
+                            movingLogo.style.boxShadow = 'none';
+                        });
+
+                        setTimeout(() => {
+                            targetBox.innerHTML = `<img src="${homeConfig.logoUrl}" class="w-full h-full object-cover rounded-3xl animate-fade-in shadow-md border border-slate-100" alt="Logo">`;
+                            loaderScreen.style.opacity = '0';
+                            setTimeout(() => loaderScreen.remove(), 500);
+                        }, 800);
+                    } else {
+                        if(targetBox && homeConfig.logoUrl) {
+                            targetBox.innerHTML = `<img src="${homeConfig.logoUrl}" class="w-full h-full object-cover rounded-3xl animate-fade-in shadow-md border border-slate-100" alt="Logo">`;
+                        }
+                        loaderScreen.style.opacity = '0';
+                        setTimeout(() => loaderScreen.remove(), 500);
+                    }
+                    isSplashDone = true;
+                }, 1000);
+            }
+        };
+
+        function applyConfigToUI(config) {
+            config=normalizeBranding(config);const fName=brandingName(config);document.title=`${fName} — Team Portal`;document.querySelectorAll('[data-current-year]').forEach(el=>el.textContent=new Date().getFullYear());
+
+            document.getElementById('header-fest-name').innerText = fName;
+            document.getElementById('footer-fest-name').innerText = config.festName1 || fName;
+
+            applyBase64Image(document.getElementById('header-logo-img'),config.logoUrl);if(!isSplashDone)applyBase64Image(document.getElementById('loader-img-tag'),config.logoUrl);
+            applyTeamPublicConfig();
+            const s = (publicConfig.social || config.social || {});
+            const sDiv = document.getElementById('social-links');
+            if(sDiv) {
+                let sHtml = '';
+                if(s.wa) sHtml += `<a href="${s.wa}"><i class="fab fa-whatsapp"></i></a>`;
+                if(s.ig) sHtml += `<a href="${s.ig}"><i class="fab fa-instagram"></i></a>`;
+                if(s.fb) sHtml += `<a href="${s.fb}"><i class="fab fa-facebook"></i></a>`;
+                if(s.yt) sHtml += `<a href="${s.yt}"><i class="fab fa-youtube"></i></a>`;
+                if(s.tg) sHtml += `<a href="${s.tg}"><i class="fab fa-telegram"></i></a>`;
+                sDiv.innerHTML = sHtml;
+            }
+        }
+
+
+        function applyTeamPublicConfig() {
+            const cfg = publicConfig.teamPortal || {};
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if(!el || !value) return;
+                const label = el.querySelector('[data-nav-label]');
+                if(label) label.textContent = value;
+            };
+            setText('nav-dashboard', cfg.dashboardLabel || 'Dashboard');
+            setText('nav-available', cfg.eventsLabel || 'Events');
+            setText('nav-myreg', cfg.myRegistrationsLabel || 'My Registrations');
+            setText('nav-report', cfg.reportsLabel || 'Reports');
+            const notif = document.querySelector('#notif-popup h3');
+            if(notif) notif.textContent = cfg.notificationsTitle || 'Notifications';
+            const pointsLabel = document.querySelector('#tview-dashboard .bg-gradient-to-br p');
+            if(pointsLabel) pointsLabel.textContent = cfg.pointsLabel || 'Total Points';
+            const footerText = publicConfig.footer?.text;
+            if(footerText) {
+                const bottom = document.querySelector('.footer-bottom');
+                const fest = document.getElementById('footer-fest-name')?.textContent || 'Fest Name';
+                if(bottom) bottom.innerHTML = `&copy; <span data-current-year></span> <span id="footer-fest-name">${fest}</span> ${footerText}<br><a href="https://www.instagram.com/muhammed_sanjide_p" target="_blank" rel="noopener noreferrer">Powered by hadi mahiri faizy</a>`;
+            }
+            window.lucide?.createIcons?.();
+        }
+
+        const showToast = (msg, type='success') => {
+            const c = document.getElementById('toast-container'); const d = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-slate-900' : 'bg-red-600';
+            d.className = `${bgClass} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in mx-auto`;
+            d.innerHTML = `<i data-lucide="${type==='success'?'check':'alert-circle'}" class="w-4 h-4"></i><span class="text-xs font-bold">${msg}</span>`;
+            c.appendChild(d); setTimeout(()=>d.remove(),3000); lucide.createIcons();
+        };
+
+        window.logout = async () => {
+            if(!confirm("Logout from team portal?")) return;
+            teamAuthRedirecting = true;
+            sessionStorage.removeItem('team_access_uid');
+            sessionStorage.removeItem('team_leader_team');
+            await signOut(auth);
+            window.location.replace('login.html');
+        };
+
+        window.subscribeNotifications = () => {
+             onSnapshot(query(collection(db, "notifications"), where("team", "in", ["All", currentTeam])), (snap) => {
+                notifications = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>b.timestamp-a.timestamp);
+                window.updateNotifBadge();
+                window.renderNotifications();
+                window.renderDashboard();
+             });
+        };
+
+        window.updateNotifBadge = () => {
+            const lastRead = localStorage.getItem(`team_last_read_${currentTeam}`) || 0;
+            const newCount = notifications.filter(n => n.timestamp > lastRead).length;
+            const b = document.getElementById('notif-badge');
+            if(newCount > 0) { b.classList.remove('hidden'); b.innerText = newCount > 9 ? '9+' : newCount; }
+            else { b.classList.add('hidden'); }
+        };
+
+        window.filterNotifs = (filterType) => {
+            activeNotifFilter = filterType;
+            ['all', 'alert', 'result'].forEach(t => {
+                const btn = document.getElementById(`n-btn-${t}`);
+                if(t === filterType) { btn.classList.remove('bg-slate-100', 'text-slate-500'); btn.classList.add('bg-red-600', 'text-white'); }
+                else { btn.classList.add('bg-slate-100', 'text-slate-500'); btn.classList.remove('bg-red-600', 'text-white'); }
+            });
+            window.renderNotifications();
+        };
+
+        window.renderNotifications = () => {
+            const list = document.getElementById('notif-list');
+            let filtered = notifications;
+            if(activeNotifFilter === 'alert') filtered = notifications.filter(n => n.type !== 'success' && n.type !== 'result');
+            else if (activeNotifFilter === 'result') filtered = notifications.filter(n => n.type === 'success' || n.type === 'result');
+
+            if(filtered.length === 0) { list.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm italic">No notifications found</div>`; return; }
+
+            list.innerHTML = filtered.map(n => {
+                const isResult = n.type === 'success' || n.type === 'result';
+                const icon = isResult ? 'trophy' : 'alert-circle';
+                const iconColor = isResult ? 'text-yellow-600 bg-yellow-50' : 'text-red-500 bg-red-50';
+
+                return `
+                <div onclick="handleNotificationClick('${n.eventId}', '${n.title}', '${n.type}')" class="p-3 bg-white rounded-xl border border-slate-100 flex items-start gap-3 transition cursor-pointer hover:bg-blue-50">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconColor}">
+                        <i data-lucide="${icon}" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-slate-800 truncate">${n.title}</p>
+                        <p class="text-[10px] text-slate-500 leading-relaxed line-clamp-2">${n.message}</p>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase mt-1 block">${new Date(n.timestamp).toLocaleDateString()}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        };
+
+        window.handleNotificationClick = (eventId, eventName, type) => {
+            if(!eventId) return;
+            const isResult = type === 'success' || type === 'result' || (eventName && eventName.toLowerCase().includes('result'));
+
+            if (isResult) {
+                const publishedEventName = events.find(event => event.id === eventId)?.name || eventName || '';
+                window.open(`results.html?search=${encodeURIComponent(publishedEventName)}`, '_blank');
+            } else {
+                const popup = document.getElementById('notif-popup');
+                const overlay = document.getElementById('overlay');
+                popup.classList.remove('open');
+                overlay.classList.remove('show');
+                setTeamSubTab('available');
+                setTimeout(() => {
+                    const card = document.getElementById(`event-card-${eventId}`);
+                    if(card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.classList.add('card-highlight');
+                        setTimeout(() => card.classList.remove('card-highlight'), 2000);
+                    } else {
+                        showToast('Event details not found', 'info');
+                    }
+                }, 300);
+            }
+        };
+
+        window.toggleNotifications = () => {
+            const popup = document.getElementById('notif-popup');
+            const overlay = document.getElementById('overlay');
+
+            if(popup.classList.contains('open')) {
+                popup.classList.remove('open');
+                overlay.classList.remove('show');
+            } else {
+                localStorage.setItem(`team_last_read_${currentTeam}`, Date.now());
+                window.updateNotifBadge();
+                popup.classList.add('open');
+                overlay.classList.add('show');
+                document.getElementById('menuBtn').classList.remove('active');
+                document.getElementById('popupMenu').classList.remove('open');
+            }
+        };
+
+        window.confirmAction = (msg = 'Are you sure?') => {
+            return new Promise((res) => {
+                const m = document.getElementById('confirm-modal'); document.getElementById('confirm-msg').innerText = msg; m.classList.remove('hidden');
+                const y = () => { clean(); res(true); }; const n = () => { clean(); res(false); };
+                const clean = () => { document.getElementById('confirm-ok').removeEventListener('click', y); document.getElementById('confirm-cancel').removeEventListener('click', n); m.classList.add('hidden'); };
+                document.getElementById('confirm-ok').addEventListener('click', y); document.getElementById('confirm-cancel').addEventListener('click', n);
+            });
+        };
+
+
+        const timeToMinutes = (value = '') => {
+            const raw = String(value || '').trim();
+            const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+            if(!match) return 99999;
+            let hours = Number(match[1]);
+            const minutes = Number(match[2]);
+            const meridian = (match[3] || '').toUpperCase();
+            if(meridian === 'PM' && hours < 12) hours += 12;
+            if(meridian === 'AM' && hours === 12) hours = 0;
+            return hours * 60 + minutes;
+        };
+        const toAmPm = (value = '') => {
+            const raw = String(value || '').trim();
+            if(!raw) return '';
+            if(/AM|PM/i.test(raw)) return raw.replace(/\s*(am|pm)$/i, m => m.toUpperCase());
+            const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+            if(!match) return raw;
+            let hours = Number(match[1]);
+            const meridian = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            return `${hours}:${match[2]} ${meridian}`;
+        };
+        const scheduleDateDisplay = (date = '') => { const [y,m,d] = String(date || '').split('-'); return y && m && d ? `${d}/${m}/${y}` : (date || 'No date'); };
+        const scheduleGenderText = (gender = '') => String(gender || 'Both').toLowerCase() === 'boys' ? 'Boys' : (String(gender || '').toLowerCase() === 'girls' ? 'Girls' : 'Boys and Girls');
+        const scheduleSortKey = (row) => `${row.date || '9999-12-31'} ${String(timeToMinutes(row.sortTime)).padStart(5,'0')}`;
+        const scheduleDateTime = (date, time) => {
+            const minutes = timeToMinutes(time);
+            if(!date || minutes >= 99999) return null;
+            const [y,m,d] = String(date).split('-').map(Number);
+            if(!y || !m || !d) return null;
+            return new Date(y, m - 1, d, Math.floor(minutes / 60), minutes % 60, 0, 0);
+        };
+        const formatCountdown = (target, now = new Date()) => {
+            if(!target) return 'NEXT';
+            const diff = Math.max(0, target - now);
+            const totalSeconds = Math.floor(diff / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${days ? `${days}d ` : ''}${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        };
+        const teamScheduleRows = () => festSetup.scheduleMode==='basic' ? events.filter(leaderCanViewEvent).slice().sort((a,b)=>Number(a.scheduleOrder||9999)-Number(b.scheduleOrder||9999)).map(e=>({type:'program',eventId:e.id,date:'Program Order',time:`#${e.scheduleOrder||'-'}`,sortTime:String(e.scheduleOrder||9999),category:e.category||'General',title:e.name||'',gender:e.gender||'Both',stage:'',registered:registrations.some(r=>r.eventId===e.id&&r.team===currentTeam)})) : [
+            ...events.filter(e => e.scheduleDate && e.time && leaderCanViewEvent(e)).map(e => ({ type:'program', eventId:e.id, date:e.scheduleDate, time:toAmPm(e.time), sortTime:e.time, category:e.category || 'General', title:e.name || '', gender:e.gender || 'Both', stage:e.scheduleStage || e.stageNo || e.stageNumber || '', registered: registrations.some(r => r.eventId === e.id && r.team === currentTeam) })),
+            ...scheduleBreaks.filter(b => b.active !== false).map(b => ({ type:'break', eventId:b.id, date:b.date || '', time:`${toAmPm(b.startTime || '')}${b.endTime ? ` - ${toAmPm(b.endTime)}` : ''}`, sortTime:b.startTime || '', endTime:b.endTime || '', category:b.category || 'General', title:b.title || 'Break', gender:'-', stage:Array.isArray(b.stages)&&b.stages.length?b.stages.join(', '):(b.stage || 'All Stages'), registered:true }))
+        ].sort((a,b) => scheduleSortKey(a).localeCompare(scheduleSortKey(b)));
+        const getNextTeamProgram = (rows, now = new Date()) => {
+            if(festSetup.scheduleMode==='basic'){const program=rows.find(row=>row.type==='program');return program?{program,activeBreak:null,target:null}:null;}
+            const activeBreak = rows.find(r => r.type === 'break' && scheduleDateTime(r.date, r.sortTime) && scheduleDateTime(r.date, r.endTime) && now >= scheduleDateTime(r.date, r.sortTime) && now < scheduleDateTime(r.date, r.endTime));
+            const after = activeBreak?.endTime ? scheduleDateTime(activeBreak.date, activeBreak.endTime) : now;
+            const nextProgram = rows.find(r => r.type === 'program' && scheduleDateTime(r.date, r.sortTime) && scheduleDateTime(r.date, r.sortTime) >= after);
+            return nextProgram ? { program: nextProgram, activeBreak, target: scheduleDateTime(nextProgram.date, nextProgram.sortTime) } : null;
+        };
+        const renderTeamNextScheduleCard = (rows) => {
+            const info = getNextTeamProgram(rows);
+            const nextEl = document.getElementById('team-next-schedule');
+            if(!nextEl) return;
+            if(!info) { nextEl.innerHTML = ''; return; }
+            const { program, activeBreak, target } = info;
+            nextEl.innerHTML = `<div class="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-emerald-500 p-5 text-white shadow-2xl shadow-indigo-900/20"><div class="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/15"></div><div class="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/75">${activeBreak ? 'After Break' : 'Next Program'}</p><h3 class="mt-2 text-2xl font-black leading-tight">${program.title} (${scheduleGenderText(program.gender)})</h3><p class="mt-2 text-sm font-bold text-white/80">${scheduleDateDisplay(program.date)} • ${program.time} • ${program.stage || 'Stage TBD'}</p><p class="mt-1 text-xs font-bold text-white/70">${activeBreak ? `${activeBreak.title || 'Break'} is running now. Next program starts after the break.` : 'Countdown to the next scheduled program'}</p></div><div class="rounded-2xl border border-white/25 bg-white/15 px-5 py-4 text-center backdrop-blur"><p class="text-[10px] font-black uppercase tracking-widest text-white/70">Starts in</p><div class="mt-1 font-mono text-3xl font-black">${formatCountdown(target)}</div></div></div></div>`;
+        };
+        const teamScheduleParticipants = eventId => {
+            const participantIds = registrations.filter(registration => registration.eventId === eventId && registration.team === currentTeam).flatMap(registration => registration.studentIds || []);
+            return [...new Set(participantIds)].map(studentId => students.find(student => student.id === studentId)).filter(student => student && student.team === currentTeam && leaderCanManageStudent(student)).sort((a,b) => (Number(a.chestNo) || 0) - (Number(b.chestNo) || 0));
+        };
+        window.openScheduleParticipants = (eventId) => {
+            const event = events.find(e => e.id === eventId);
+            if(!event || !leaderCanViewEvent(event)) return;
+            const participants = teamScheduleParticipants(eventId);
+            const scope = leaderGenderScope();
+            document.getElementById('schedule-participants-title').textContent = event.name || 'Program';
+            document.getElementById('schedule-participants-info').textContent = `${currentTeam} • ${scope === 'Both' ? 'Boys & Girls' : scope} • ${participants.length} participant${participants.length === 1 ? '' : 's'}`;
+            const list = document.getElementById('schedule-participants-list');
+            list.innerHTML = participants.length ? `<section class="overflow-hidden rounded-2xl border border-indigo-300 ring-2 ring-indigo-100 bg-white"><div class="flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-100"><h4 class="font-black text-slate-800">${currentTeam}</h4><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">${participants.length} from our team</span></div><div class="divide-y divide-slate-100">${participants.map(student => `<button onclick="openScheduleStudentDetails('${student.id}')" class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-indigo-50"><span class="rounded-lg bg-indigo-50 px-2 py-1 font-mono text-xs font-black text-indigo-700">${student.chestNo || '-'}</span><div class="min-w-0 flex-1"><p class="font-bold text-slate-800">${student.name || 'Student'}</p><p class="text-[10px] font-bold uppercase text-slate-400">${student.category || ''} • ${studentGender(student)}</p></div><i data-lucide="chevron-right" class="h-4 w-4 text-indigo-400"></i></button>`).join('')}</div></section>` : '<div class="py-10 text-center"><i data-lucide="users-round" class="mx-auto mb-3 h-8 w-8 text-slate-300"></i><p class="text-sm font-bold text-slate-400">No participants from your team in your access scope.</p></div>';
+            document.getElementById('schedule-participants-modal').classList.remove('hidden');
+            lucide?.createIcons?.();
+        };
+        window.openScheduleStudentDetails = studentId => {
+            window.closeScheduleParticipants();
+            window.openStudentDetails(studentId);
+        };
+        window.closeScheduleParticipants = () => document.getElementById('schedule-participants-modal').classList.add('hidden');
+
+        const filteredTeamScheduleRows = () => {
+            const category = document.getElementById('team-schedule-category')?.value || '';
+            const date = document.getElementById('team-schedule-date')?.value || '';
+            const gender = document.getElementById('team-schedule-gender')?.value || '';
+            const search = (document.getElementById('team-schedule-search')?.value || '').toLowerCase().trim();
+            return teamScheduleRows().filter(r => (!category || r.category === category) && (!date || r.date === date) && (!gender || r.type === 'break' || r.gender === 'Both' || r.gender === gender) && (!search || `${r.title} ${r.category} ${r.stage}`.toLowerCase().includes(search)));
+        };
+
+        window.renderTeamSchedule = (resetPage = false) => {
+            if(!currentTeam) return;
+            if(resetPage) teamSchedulePage = 1;
+            const rows = teamScheduleRows();
+            const dateSel = document.getElementById('team-schedule-date');
+            const categorySel = document.getElementById('team-schedule-category');
+            if(dateSel && !dateSel.dataset.ready) { const old = dateSel.value; dateSel.innerHTML = '<option value="">All Dates</option>' + [...new Set(rows.map(r=>r.date).filter(Boolean))].sort().map(d=>`<option value="${d}">${scheduleDateDisplay(d)}</option>`).join(''); dateSel.value = old; dateSel.dataset.ready = '1'; }
+            if(categorySel && !categorySel.dataset.ready) { const old = categorySel.value; categorySel.innerHTML = '<option value="">All Categories</option>' + [...new Set(rows.filter(r => r.type === 'program').map(r=>r.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b)).map(category=>`<option value="${category}">${category}</option>`).join(''); categorySel.value = old; categorySel.dataset.ready = '1'; }
+            const filtered = filteredTeamScheduleRows();
+            renderTeamNextScheduleCard(filtered);
+            const totalPages = Math.max(1, Math.ceil(filtered.length / teamSchedulePageSize));
+            teamSchedulePage = Math.min(Math.max(1, teamSchedulePage), totalPages);
+            const pageStart = (teamSchedulePage - 1) * teamSchedulePageSize;
+            const pageRows = filtered.slice(pageStart, pageStart + teamSchedulePageSize);
+            const groups = pageRows.reduce((acc,r)=>{ (acc[r.date || 'No date'] ||= []).push(r); return acc; }, {});
+            const list = document.getElementById('team-schedule-list');
+            if(!list) return;
+            list.innerHTML = Object.entries(groups).map(([date, items]) => `<div class="overflow-hidden rounded-[1.75rem] border border-indigo-100 bg-white shadow-xl shadow-indigo-950/5"><div class="flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-50 via-white to-emerald-50 px-4 py-4 border-b border-indigo-100"><div><p class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">Schedule Table</p><h3 class="text-lg font-black text-slate-900">${scheduleDateDisplay(date)}</h3></div><span class="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-500 border border-slate-200">${items.length} items</span></div><div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left text-sm"><thead class="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Time</th><th class="px-4 py-3">Category</th><th class="px-4 py-3">Program</th><th class="px-4 py-3 text-center">Stage</th><th class="px-4 py-3 text-center">Participants</th></tr></thead><tbody class="divide-y divide-slate-100">${items.map(r => r.type === 'break' ? `<tr class="bg-amber-50/80"><td class="px-4 py-4 font-black text-amber-700">${r.time}</td><td class="px-4 py-4"><span class="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black uppercase text-amber-700">Break</span></td><td class="px-4 py-4 font-black text-slate-800">${r.title}</td><td class="px-4 py-4 text-center"><span class="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 border border-amber-100">${r.stage || 'All'}</span></td><td class="px-4 py-4 text-center"><span class="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-700">Common</span></td></tr>` : `<tr onclick="openScheduleParticipants('${r.eventId}')" class="cursor-pointer hover:bg-indigo-50/70 transition" title="Click to view participants"><td class="px-4 py-4 align-top font-black text-indigo-700">${r.time}</td><td class="px-4 py-4 align-top"><span class="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black uppercase text-slate-600">${r.category}</span></td><td class="px-4 py-4 align-top"><div class="font-black text-slate-900">${r.title}</div><div class="mt-1 text-xs font-bold text-slate-500">${scheduleGenderText(r.gender)} • Click to view participants</div></td><td class="px-4 py-4 align-top text-center"><span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700 border border-indigo-100">${r.stage || 'Stage TBD'}</span></td><td class="px-4 py-4 align-top text-center"><span class="rounded-full bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700">${teamScheduleParticipants(r.eventId).length} from our team</span></td></tr>`).join('')}</tbody></table></div></div>`).join('') || '<div class="text-center text-slate-400 font-bold py-12 bg-white rounded-2xl border border-dashed border-slate-200">No scheduled programs found.</div>';
+            const pagination = document.getElementById('team-schedule-pagination');
+            if(pagination) {
+                const from = filtered.length ? pageStart + 1 : 0;
+                const to = Math.min(pageStart + teamSchedulePageSize, filtered.length);
+                pagination.classList.toggle('hidden', totalPages <= 1);
+                pagination.classList.toggle('flex', totalPages > 1);
+                pagination.innerHTML = totalPages > 1 ? `<button onclick="changeTeamSchedulePage(-1)" class="${teamSchedulePage > 1 ? 'inline-flex' : 'invisible'} items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"><i data-lucide="chevron-left" class="h-4 w-4"></i> Previous</button><div class="text-center"><p class="text-xs font-black text-slate-700">Page ${teamSchedulePage} of ${totalPages}</p><p class="text-[10px] font-bold text-slate-400">Showing ${from}–${to} of ${filtered.length}</p></div><button onclick="changeTeamSchedulePage(1)" class="${teamSchedulePage < totalPages ? 'inline-flex' : 'invisible'} items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700">Next <i data-lucide="chevron-right" class="h-4 w-4"></i></button>` : '';
+            }
+            lucide?.createIcons?.();
+        };
+        window.changeTeamSchedulePageSize = value => { teamSchedulePageSize = [30,50,80,100,130,150,200].includes(Number(value)) ? Number(value) : 30; teamSchedulePage = 1; window.renderTeamSchedule(); };
+        window.changeTeamSchedulePage = delta => { teamSchedulePage += Number(delta || 0); window.renderTeamSchedule(); document.getElementById('team-schedule-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        setInterval(() => { if(currentTeam) renderTeamNextScheduleCard(filteredTeamScheduleRows()); }, 1000);
+
+        window.renderDropdowns = () => {
+            const teamOpts = teams.map(t => `<option value="${teamEscape(t)}">${teamEscape(teamLabel(t))} (${teamEscape(t)})</option>`).join('');
+            const catOpts = categories.map(c => `<option value="${teamEscape(c)}">${teamEscape(categoryLabel(c))} (${teamEscape(c)})</option>`).join('');
+            document.querySelectorAll('.select-team').forEach(s => { const old = s.value; s.innerHTML = '<option value="">Select Your Team</option>' + teamOpts; if(teams.includes(old)) s.value=old; });
+            document.querySelectorAll('.select-cat-filter').forEach(s => { const old = s.value; s.innerHTML = '<option value="">All Categories</option><option value="General" class="font-bold text-blue-600">General</option>' + catOpts; if(categories.includes(old) || old==='General') s.value = old; });
+            document.querySelectorAll('.select-cat').forEach(s => { const old = s.value; const first=s.id==='report-cat-select'?'<option value="All">All</option>':'<option value="">Select Category</option>'; s.innerHTML = first + '<option value="General" class="font-bold text-blue-600">General</option>' + catOpts; if(categories.includes(old) || old==='General' || (s.id==='report-cat-select' && (old==='' || old==='All'))) s.value=old; });
+        };
+
+        window.setTeamSubTab = (t) => {
+            currentTab = t;
+            document.querySelectorAll('.tab-view').forEach(e => e.classList.add('hidden'));
+            document.getElementById('tview-'+t).classList.remove('hidden');
+
+            menuBtn.classList.remove("active"); popupMenu.classList.remove("open"); overlay.classList.remove("show");
+            document.getElementById('notif-popup').classList.remove('open');
+            document.querySelectorAll('.popup-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-'+t).classList.add('active');
+
+            document.getElementById('page-title').innerText = { 'dashboard': 'Dashboard', 'selfreg':'Self Registration', 'available': 'Events', 'myreg': 'My Registrations', 'schedule': 'My Schedule', 'certificates':'Certificates & Posters', 'report': 'Reports' }[t];
+            if(t === 'dashboard') window.renderDashboard();if(t==='selfreg')window.renderTeamApplications();
+            if(t === 'schedule') window.renderTeamSchedule();
+        };
+
+        // --- DASHBOARD LOGIC ---
+        window.renderDashboard = () => {
+            if(!currentTeam) return;
+
+            let teamScores = {}; teams.forEach(t => teamScores[t] = 0);
+            let firstPts = 0, secondPts = 0, thirdPts = 0;
+            let firstCnt = 0, secondCnt = 0, thirdCnt = 0;
+
+            results.forEach(r => {
+                const resultEvent = events.find(event => event.id === r.eventId);
+                if(!eventContributesToTeamScore(resultEvent||r,festSetup)) return;
+                if(resultEvent && !leaderCanViewEvent(resultEvent)) return;
+                ['first', 'second', 'third'].forEach(place => {
+                    const winners = r.winners[place];
+                    const pts = r.points[place];
+                    if(!winners || !pts) return;
+                    const arr = Array.isArray(winners) ? winners : [winners];
+                    arr.forEach(w => {
+                        let tName = null;
+                        if(r.type === 'Group') {
+                            if(leaderGenderScope() !== 'Both' && resultEvent && eventGender(resultEvent) === 'Both') {
+                                const scopedEntry = registrations.some(reg => reg.eventId === resultEvent.id && reg.team === w && (reg.studentIds || []).some(id => { const student = students.find(item => item.id === id); return student && leaderCanManageStudent(student); }));
+                                if(!scopedEntry) return;
+                            }
+                            tName = w;
+                        } else { const s = students.find(std => std.id === w); if(s && leaderCanManageStudent(s)) tName = s.team; }
+                        if(tName && teamScores[tName] !== undefined) teamScores[tName] += parseInt(pts);
+
+                        if(tName === currentTeam) {
+                            if(place === 'first') { firstCnt++; firstPts += parseInt(pts); }
+                            if(place === 'second') { secondCnt++; secondPts += parseInt(pts); }
+                            if(place === 'third') { thirdCnt++; thirdPts += parseInt(pts); }
+                        }
+                    });
+                });
+            });
+
+            const myPoints = teamScores[currentTeam] || 0;
+            const sortedTeams = Object.entries(teamScores).sort((a,b) => b[1] - a[1]);
+            const myRank = sortedTeams.findIndex(item => item[0] === currentTeam) + 1;
+
+            document.getElementById('dash-points').innerText = myPoints;
+            document.getElementById('dash-rank').innerText = `# ${myRank}`;
+
+            const myStudents = scopedTeamStudents();
+            const allowedStudentIds = new Set(myStudents.map(student => student.id));
+            const myRegs = registrations.filter(r => r.team === currentTeam && (r.studentIds || []).some(id => allowedStudentIds.has(id)));
+            const uniqueParticipating = new Set(myRegs.flatMap(r => r.studentIds).filter(id => allowedStudentIds.has(id))).size;
+
+            document.getElementById('dash-std-total').innerText = myStudents.length;
+            document.getElementById('dash-std-reg').innerText = uniqueParticipating;
+
+            const allCats = [...categories, 'General'];
+            let tableHtml = '';
+
+            allCats.forEach(cat => {
+                const catEvents = events.filter(e => e.category === cat && leaderCanViewEvent(e));
+                if(catEvents.length === 0) return;
+
+                let participatedCount = 0;
+                catEvents.forEach(e => {
+                    const hasReg = registrations.some(r => r.eventId === e.id && r.team === currentTeam);
+                    if(hasReg) participatedCount++;
+                });
+
+                const pendingCount = catEvents.length - participatedCount;
+                tableHtml += `<tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><td class="px-4 py-3 font-bold text-slate-700">${cat}</td><td class="px-4 py-3 text-center text-slate-500">${catEvents.length}</td><td class="px-4 py-3 text-center text-emerald-600 font-bold">${participatedCount}</td><td class="px-4 py-3 text-center text-orange-500 font-bold">${pendingCount}</td></tr>`;
+            });
+            document.getElementById('dash-cat-table').innerHTML = tableHtml || `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No Data</td></tr>`;
+
+            document.getElementById('dash-first').innerText = `${firstCnt}`;
+            document.getElementById('dash-first-pts').innerText = `(${firstPts} pts)`;
+            document.getElementById('dash-second').innerText = `${secondCnt}`;
+            document.getElementById('dash-second-pts').innerText = `(${secondPts} pts)`;
+            document.getElementById('dash-third').innerText = `${thirdCnt}`;
+            document.getElementById('dash-third-pts').innerText = `(${thirdPts} pts)`;
+
+            const notifHtml = notifications.slice(0, 3).map(n =>
+                `<div onclick="handleNotificationClick('${n.eventId}', '${n.title}', '${n.type}')" class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition"><div class="w-2 h-2 mt-1.5 rounded-full bg-blue-500 shrink-0"></div><div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">${n.title}</p><p class="text-xs text-slate-500 truncate">${n.message}</p></div></div>`
+            ).join('');
+            document.getElementById('dash-notif-preview').innerHTML = notifHtml || '<p class="text-xs text-slate-400 italic">No recent alerts</p>';
+        };
+
+        const finalRegistrationLockAt = () => Number(registrationConfig.finalizationLockAt || scheduleConfig.registrationLockAt || 0);
+        const registrationIsLocked = () => finalRegistrationLockAt() > 0 && Date.now() >= finalRegistrationLockAt();
+        const finalRegistrationLockLabel = () => finalRegistrationLockAt() ? new Date(finalRegistrationLockAt()).toLocaleString() : '';
+        const selectionIsLocked=()=>Number(registrationConfig.selectionDeadlineAt||0)>0&&Date.now()>=Number(registrationConfig.selectionDeadlineAt);
+        const teamEntryResult = (event, registration) => {
+            const result = results.find(r => r.eventId === event.id && (!r.status || r.status === 'published'));
+            if(!result) return '';
+            const ids = registration?.studentIds || [];
+            const awards = [];
+            if(Array.isArray(result.places)) result.places.forEach(place => {
+                const won = (place.winners || []).some(winner => event.type === 'Group' ? winner === currentTeam : ids.includes(winner));
+                if(won) awards.push(`${place.label || 'Position'} • ${Number(place.earnedValue ?? place.value ?? 0)} pts`);
+            });
+            if(Array.isArray(result.gradeAwards)) result.gradeAwards.forEach(grade => {
+                if((grade.winners || []).some(winner => event.type === 'Group' ? winner === currentTeam : ids.includes(winner))) awards.push(`${grade.label || 'Grade'} • ${Number(grade.value || 0)} pts`);
+            });
+            if(!awards.length && result.winners) ['first','second','third'].forEach(position => {
+                const winners = Array.isArray(result.winners[position]) ? result.winners[position] : [result.winners[position]].filter(Boolean);
+                if(winners.some(winner => event.type === 'Group' ? winner === currentTeam : ids.includes(winner))) awards.push(`${position[0].toUpperCase()+position.slice(1)} • ${Number(result.points?.[position] || 0)} pts`);
+            });
+            return awards.join(' | ');
+        };
+
+
+        const teamApplicationRows = () => [...registrationApplications.map(item=>({...item,recordSource:'application'})),...registrationRequests.map(item=>({...item,eventId:(item.eventIds||[])[0],eventName:(item.eventIds||[]).map(id=>events.find(event=>event.id===id)?.name||id).join(' • '),studentName:item.name,recordSource:'request'}))].filter(item=>!['removed'].includes(item.status));
+        const notRequestedApplicationRows = () => { const requestedIds = new Set(teamApplicationRows().map(item => item.studentId || item.relatedStudentId || item.participantId).filter(Boolean)); return scopedTeamStudents().filter(student => !requestedIds.has(student.id) && leaderCanManageStudent(student)).map(student => ({ id:`not_requested_${student.id}`, recordSource:'not_requested', status:'not_requested', team:currentTeam, studentId:student.id, studentName:student.name, chestNo:student.chestNo, category:student.category || 'General' })); };
+        const resolveApplicationPerson = item => {
+            const student = students.find(value => value.id === (item.studentId || item.relatedStudentId || item.participantId));
+            return { student, name: item.studentName || item.participantName || item.name || student?.name || 'Applicant', chestNo: item.chestNo || student?.chestNo || item.profileSnapshot?.chestNo || '' };
+        };
+        const applicationEvent = item => events.find(row=>row.id===(item.eventId||(item.eventIds||[])[0])) || item.eventSnapshot || {};
+        const teamApplicationMedia = item => ({ image:(item.images||[])[0], youtube:item.links?.youtube||item.youtubeUrl, reference:item.links?.reference||item.referenceUrl });
+        window.openTeamApplicationDetail=(id,source)=>{const item=teamApplicationRows().find(row=>row.id===id&&(!source||row.recordSource===source));if(!item)return showToast('Application details not found','error');const event=applicationEvent(item),person=resolveApplicationPerson(item),media=teamApplicationMedia(item),applied=item.appliedAt||item.submittedAt||item.createdAt,recordSource=item.recordSource||source||'application',locked=applicationDecisionLocked(item)||selectionIsLocked();document.getElementById('team-application-detail-actions').innerHTML=`${pendingApplicationStatuses.has(applicationStatus(item))?`<button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${recordSource}','not_selected')" class="rounded-xl bg-red-600 px-3 py-2 text-[10px] font-black text-white ${disabledActionClass(locked)}">Reject</button><button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${recordSource}','selected')" class="rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black text-white ${disabledActionClass(locked)}">Approve</button>`:''}<button onclick="closeTeamApplicationDetail()" class="rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-black text-white">Close</button>`;document.getElementById('team-application-detail-body').innerHTML=`<div class="space-y-3"><div class="grid grid-cols-2 gap-2 text-xs">${[['Student',person.name],['Chest',person.chestNo],['Team',item.team||currentTeam],['Event',item.eventName||event.name],['Category',event.category||item.category],['Stage / Type',`${event.stage||'Off-Stage'} / ${event.type||'Single'}`],['Status',item.status||'pending'],['Applied',applied?new Date(applied).toLocaleString():'—']].map(([a,b])=>`<div class="rounded-xl bg-slate-50 p-3"><small class="font-black uppercase text-slate-400">${teamEscape(a)}</small><b class="block break-words">${teamEscape(b||'—')}</b></div>`).join('')}</div>${item.note?`<section><b class="text-xs">Description</b><p class="mt-1 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm">${teamEscape(item.note)}</p></section>`:''}${media.youtube?`<a href="${teamEscape(media.youtube)}" target="_blank" rel="noopener" class="block rounded-xl bg-red-50 p-3 text-xs font-black text-red-700">Open YouTube ↗</a>`:''}${media.reference?`<a href="${teamEscape(media.reference)}" target="_blank" rel="noopener" class="block rounded-xl bg-indigo-50 p-3 text-xs font-black text-indigo-700">Open Reference ↗</a>`:''}${media.image?`<img src="${media.image.data}" class="max-h-96 w-full rounded-xl object-contain" alt="Application image">`:''}</div>`;const dialog=document.getElementById('team-application-detail-dialog');dialog.classList.remove('hidden');dialog.classList.add('grid');window.lucide?.createIcons?.()};
+        window.closeTeamApplicationDetail=()=>{const dialog=document.getElementById('team-application-detail-dialog');dialog.classList.add('hidden');dialog.classList.remove('grid')};
+        const applicationStatus = item => item.status || 'pending';
+        const applicationStatusGroup = status => ['selected','finalized','approved'].includes(status)?'approved':['rejected','not_selected'].includes(status)?'rejected':'pending';
+        const applicationSelected = item => ['selected','finalized'].includes(applicationStatus(item));
+        const terminalApplicationStatuses = new Set(['rejected','not_selected','finalized','removed']);
+        const pendingApplicationStatuses = new Set(['pending','applied','under_review','waitlisted']);
+        const applicationDecisionLocked = item => terminalApplicationStatuses.has(applicationStatus(item));
+        const applicationStatusBadge = status => {
+            const value = status || 'pending', label = value.replaceAll('_',' ');
+            const colors = ['rejected','not_selected','removed'].includes(value) ? 'bg-red-50 text-red-700 ring-red-100' : ['selected','finalized'].includes(value) ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-amber-50 text-amber-700 ring-amber-100';
+            return `<span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase ring-1 ${colors}">${teamEscape(label)}</span>`;
+        };
+        const currentLeaderActor = () => ({ uid: auth.currentUser?.uid || '', name: currentLeaderProfile?.displayName || currentLeaderProfile?.name || currentLeaderProfile?.username || auth.currentUser?.displayName || auth.currentUser?.email || 'Team Leader', role: currentLeaderProfile?.title || currentLeaderProfile?.role || 'Team Leader', username: currentLeaderProfile?.username || '' });
+        const registrationActorPayload = prefix => { const actor=currentLeaderActor(); return { [`${prefix}ByUid`]: actor.uid, [`${prefix}ByName`]: actor.name, [`${prefix}ByRole`]: actor.role, [`${prefix}ByUsername`]: actor.username }; };
+        const confirmApplicationDecision = (status, item) => window.confirm(status === 'selected' ? `Approve ${resolveApplicationPerson(item).name || 'this application'} and add to final entry?` : `Reject ${resolveApplicationPerson(item).name || 'this application'}?`);
+        const disabledActionClass = locked => locked ? 'cursor-not-allowed opacity-40 grayscale' : '';
+        const eventRegistrationsFor=(eventId)=>registrations.filter(item=>item.eventId===eventId&&item.team===currentTeam);
+        const registrationPersonIds = r => [...(r?.studentIds||[]), ...(r?.participantIds||[])].filter(Boolean);
+        const participantListForRegistration=r=>registrationPersonIds(r).map(id=>students.find(student=>student.id===id)||r?.participantMeta?.[id]||{id,name:'Participant',chestNo:''}).filter(Boolean);
+        const entryMemberLimit = event => Math.max(1, Number(event?.type === 'Group' ? (event.maximumMembers || event.groupSize || 1) : 1)); // keep group sizing explicit; slot cards still render student.chestNo and participant${count} style counters
+        const entrySlotsForEvent = event => { const count=Math.max(Number(event?.limit||1),...eventRegistrationsFor(event.id).map(item=>Number(item.slotIndex||1)),1); return Array.from({length:count},(_,index)=>{const slot=index+1,registration=eventRegistrationsFor(event.id).find(item=>Number(item.slotIndex||1)===slot),ids=registrationPersonIds(registration),capacity=entryMemberLimit(event);return{slot,registration,ids,count:ids.length,capacity,full:ids.length>=capacity,extra:slot>Number(event?.limit||1)}}); };
+        const firstAvailableEntrySlot = event => entrySlotsForEvent(event).find(slot=>!slot.extra&&!slot.full)?.slot || 0;
+        const applicationPersonId = item => item?.studentId || item?.relatedStudentId || item?.participantId || '';
+        const applicationAlreadyRegistered = (item,event) => { const personId=applicationPersonId(item); return !!personId && eventRegistrationsFor(event.id).some(registration=>registrationPersonIds(registration).includes(personId)); };
+        const chooseApplicationEntrySlot = (item,event) => { const slots=entrySlotsForEvent(event),person=resolveApplicationPerson(item); if(event.type !== 'Group') return firstAvailableEntrySlot(event); const lines=slots.map(slot=>{const names=participantListForRegistration(slot.registration).map(member=>`${member.chestNo||'-'} ${member.name||'Participant'}`).join(', ')||'Empty';return `${slot.slot}. Entry ${slot.slot} — ${slot.count}/${slot.capacity}${slot.full?' FULL':''}\n   ${names}`;}).join('\n'); const answer=window.prompt(`Approve ${person.name||'this applicant'} to which entry?\n\n${lines}\n\nType an available entry number.`); const slot=Number(answer); const selected=slots.find(item=>item.slot===slot); if(!selected)return 0; if(selected.extra||selected.full)return -1; return slot; };
+        const applicationRegistrationDocId = (eventId,team,slot) => `application_${eventId}_${team}_${slot}`.replace(/[^a-zA-Z0-9_-]/g,'_');
+        const appendApplicationToEntry = async (item,status,slot) => { const event=events.find(row=>row.id===item.eventId); if(!event)return showToast('Event details not found','error'); const personId=applicationPersonId(item); if(!personId)return showToast('Applicant profile is missing','error'); if(applicationAlreadyRegistered(item,event))return showToast('This applicant is already in a final entry','error'); const regRef=doc(db,'registrations',applicationRegistrationDocId(item.eventId,currentTeam,slot)); const now=Date.now(),person=resolveApplicationPerson(item),studentId=item.studentId||item.relatedStudentId||'',participantId=item.participantId||''; await runTransaction(db,async transaction=>{const existing=await transaction.get(regRef),previous=existing.data()||{},studentIds=[...new Set([...(previous.studentIds||[]),studentId].filter(Boolean))],participantIds=[...new Set([...(previous.participantIds||[]),participantId].filter(Boolean))],participantMeta={...(previous.participantMeta||{})};[studentId,participantId].filter(Boolean).forEach(id=>{participantMeta[id]={...(participantMeta[id]||{}),name:person.name,chestNo:person.chestNo,addedByUid:auth.currentUser.uid,addedByName:currentLeaderActor().name,addedByRole:currentLeaderActor().role,addedByUsername:currentLeaderActor().username,addedAt:participantMeta[id]?.addedAt||now};});if(studentIds.length+participantIds.length>entryMemberLimit(event))throw new Error('Selected entry is full. Choose another entry.');transaction.set(regRef,{eventId:item.eventId,eventName:event.name||item.eventName||'',team:currentTeam,managedGender:leaderGenderScope(),slotIndex:slot,studentIds,participantIds,participantMeta,registrationSource:'student_application',applicationIds:[...new Set([...(previous.applicationIds||[]),item.id])],status:'finalized',eventLimitSnapshot:capacityState(event,studentIds.length+participantIds.length).capacity,createdByUid:previous.createdByUid||auth.currentUser.uid,createdByName:previous.createdByName||currentLeaderActor().name,createdByRole:previous.createdByRole||currentLeaderActor().role,createdAt:previous.createdAt||now,lastUpdatedByUid:auth.currentUser.uid,lastUpdatedByName:currentLeaderActor().name,lastUpdatedByRole:currentLeaderActor().role,lastUpdatedAt:now},{merge:true});transaction.update(doc(db,'registrationApplications',item.id),{status,finalizedAt:now,decisionByUid:auth.currentUser.uid,decisionByName:currentLeaderActor().name,decisionByRole:currentLeaderActor().role,decisionAt:now,updatedAt:now})}); const localId=applicationRegistrationDocId(item.eventId,currentTeam,slot),existingIndex=registrations.findIndex(row=>row.id===localId),existingLocal=existingIndex>=0?registrations[existingIndex]:{},studentIds=[...new Set([...(existingLocal.studentIds||[]),studentId].filter(Boolean))],participantIds=[...new Set([...(existingLocal.participantIds||[]),participantId].filter(Boolean))],nextLocal={...existingLocal,id:localId,eventId:item.eventId,eventName:event.name||item.eventName||'',team:currentTeam,slotIndex:slot,studentIds,participantIds,participantMeta:{...(existingLocal.participantMeta||{}),[personId]:{name:person.name,chestNo:person.chestNo}}};if(existingIndex>=0)registrations[existingIndex]=nextLocal;else registrations.push(nextLocal); };
+        const lockedEntryEditButton = (eventId,slot) => `<button type="button" onclick="showToast('Final entries are locked by Admin','error')" class="relative z-10 inline-flex items-center justify-center rounded-lg bg-slate-200 p-2 text-slate-400 shadow cursor-not-allowed" aria-label="Entry ${slot} locked" title="Final entries locked"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>`;
+        const appendRequestToEntry = async (request,event,slot,now,actor) => { const studentIds=request.relatedStudentId?[request.relatedStudentId]:[],participantIds=request.participantId?[request.participantId]:[],person=resolveApplicationPerson(request),personId=studentIds[0]||participantIds[0]||''; if(!personId)throw new Error('Applicant profile is missing'); const existing=eventRegistrationsFor(event.id).find(row=>registrationPersonIds(row).includes(personId)); if(existing)throw new Error('This applicant is already in a final entry'); const current=eventRegistrationsFor(event.id).find(row=>Number(row.slotIndex||1)===slot),ids=[...registrationPersonIds(current),personId]; if(ids.length>entryMemberLimit(event))throw new Error('Selected entry is full. Choose another entry.'); const participantMeta={...(current?.participantMeta||{}),[personId]:{name:person.name,chestNo:person.chestNo,addedByUid:auth.currentUser.uid,addedByName:currentLeaderActor().name,addedByRole:currentLeaderActor().role,addedByUsername:currentLeaderActor().username,addedAt:now}},refId=`self_${request.id}_${event.id}_${slot}`.replace(/[^a-zA-Z0-9_-]/g,'_'),ref=doc(db,'registrations',refId),nextStudentIds=[...new Set([...(current?.studentIds||[]),...studentIds])],nextParticipantIds=[...new Set([...(current?.participantIds||[]),...participantIds])]; await setDoc(ref,{eventId:event.id,eventName:event.name||'',team:currentTeam,managedGender:leaderGenderScope(),slotIndex:slot,studentIds:nextStudentIds,participantIds:nextParticipantIds,participantMeta,registrationSource:'self_request',requestIds:[...new Set([...(current?.requestIds||[]),request.id])],...actor,createdAt:current?.createdAt||now,lastUpdatedByUid:auth.currentUser.uid,lastUpdatedByName:currentLeaderActor().name,lastUpdatedByRole:currentLeaderActor().role,lastUpdatedAt:now},{merge:true}); const local={...(current||{}),id:refId,eventId:event.id,eventName:event.name||'',team:currentTeam,slotIndex:slot,studentIds:nextStudentIds,participantIds:nextParticipantIds,participantMeta}; const index=registrations.findIndex(row=>row.id===refId); if(index>=0)registrations[index]=local; else registrations.push(local); };
+        const requestEventIds=item=>Array.isArray(item.eventIds)&&item.eventIds.length?item.eventIds:[item.eventId].filter(Boolean);
+        const applicationMatchesEvent=(item,eventId)=>item.eventId===eventId||requestEventIds(item).includes(eventId);
+        const applicationPersonAllowed=item=>{const person=resolveApplicationPerson(item);return !person.student||leaderCanManageStudent(person.student)};
+        const eventApplicationsFor=eventId=>teamApplicationRows().filter(item=>item.team===currentTeam&&applicationMatchesEvent(item,eventId)&&applicationPersonAllowed(item));
+        const pendingEventApplicationsFor=eventId=>eventApplicationsFor(eventId).filter(item=>pendingApplicationStatuses.has(applicationStatus(item)));
+        const eventSlotRange=e=>Math.max(Number(e.limit||1),...eventRegistrationsFor(e.id).map(item=>Number(item.slotIndex||1)),1);
+        const eventEntryState=(event,capacity,pendingCount=0)=>pendingCount>0?'pending_application':eventSlotRange(event)>Number(event.limit||1)||capacity.count>capacity.capacity?'overloaded':capacity.count===0?'empty':capacity.count<capacity.capacity?'partial':'filled';
+        const eventCardClasses=state=>({empty:'border-slate-200 bg-white',partial:'border-amber-300 bg-amber-50',filled:'border-emerald-300 bg-emerald-50',pending_application:'border-red-300 bg-red-50',overloaded:'border-red-300 bg-red-50'}[state]||'border-slate-200 bg-white');
+        const eventStatusLabel=(state,capacity,pendingCount=0)=>state==='pending_application'?`${pendingCount} pending approval`:state==='empty'?'Not filled':state==='partial'?'Partially filled':state==='filled'?'Filled':`OVERLOADED +${capacity.excess}`;
+        const eventStatusBadge=(state,capacity)=>({empty:'bg-white text-slate-500 border border-slate-200',partial:'bg-amber-100 text-amber-800 border border-amber-200',filled:'bg-emerald-100 text-emerald-800 border border-emerald-200',pending_application:'bg-red-600 text-white border border-red-600',overloaded:'bg-red-600 text-white border border-red-600'}[state]||'bg-white text-slate-500')+` rounded-full px-2 py-1 text-[9px] font-black uppercase`;
+        const renderTeamEventSlots=(e,{popup=false}={})=>{let html='';for(const slotInfo of entrySlotsForEvent(e)){const i=slotInfo.slot,r=slotInfo.registration,participants=participantListForRegistration(r),count=participants.length,isFull=slotInfo.full,isExtra=slotInfo.extra,style=isExtra?'bg-red-50 border-red-200 text-red-700':count>0?(isFull?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-amber-50 border-amber-200 text-amber-700'):'bg-white border-slate-100 text-slate-400',details=count?`<div class="mt-2 grid gap-1 ${popup?'sm:grid-cols-2':''}">${participants.map(student=>`<div class="flex min-w-0 items-center gap-2 rounded-lg bg-white/70 px-2 py-1 text-[11px] font-bold"><span class="rounded bg-white px-1.5 py-0.5 font-mono">${teamEscape(student.chestNo||'-')}</span><span class="truncate">${teamEscape(student.name||'Participant')}</span></div>`).join('')}</div>`:'',award=teamEntryResult(e,r),body=`<div class="min-w-0 flex-1 text-left"><div class="flex items-center justify-between gap-2"><div><span class="text-xs font-bold uppercase tracking-wider">${isExtra?'Extra ':''}Entry ${i}</span><span class="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-black">${count}/${slotInfo.capacity}</span></div>${isExtra?'<span class="rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">OVER LIMIT</span>':''}</div>${details}${award?`<div class="mt-2 rounded-lg bg-violet-100 px-2 py-1.5 text-[10px] font-black text-violet-700"><i data-lucide="trophy" class="mr-1 inline h-3 w-3"></i>${teamEscape(award)}</div>`:''}</div>`,edit=registrationIsLocked()?lockedEntryEditButton(e.id,i):`<button onclick="openRegModal('${e.id}',${i})" class="relative z-10 inline-flex items-center justify-center rounded-lg bg-blue-600 p-2 text-white shadow" aria-label="Edit entry ${i}" title="Edit entry ${i}"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>`;html+=popup?`<div class="flex items-start gap-2 rounded-xl border ${style} p-2.5">${body}${edit}</div>`:`<div class="flex w-full items-start gap-2 rounded-xl border ${style} p-2.5 transition hover:shadow-sm">${registrationIsLocked()?body:`<button onclick="openRegModal('${e.id}',${i})" class="min-w-0 flex-1 text-left">${body}</button>`}${edit}</div>`}return html};
+        const renderEventMetaChips=(e,capacity)=>[[e.category||'General','bg-slate-100 text-slate-700'],[e.stage||'Off-Stage','bg-orange-50 text-orange-700'],[eventGender(e),'bg-pink-50 text-pink-700'],[e.type||'Single','bg-blue-50 text-blue-700'],[`${capacity.count}/${capacity.capacity} selected`,'bg-emerald-50 text-emerald-700']].map(([label,classes])=>`<span class="rounded px-2 py-0.5 text-[10px] font-black uppercase ${classes}">${teamEscape(label)}</span>`).join('');
+        const renderTeamEventApplications=e=>{const rows=pendingEventApplicationsFor(e.id);if(!rows.length)return'';return `<section class="space-y-2 rounded-2xl border border-red-200 bg-red-50 p-3"><div class="flex items-center justify-between gap-2"><h3 class="text-xs font-black uppercase text-red-700">Open Registration Pending</h3><span class="rounded-full bg-red-600 px-2 py-1 text-[10px] font-black text-white">${rows.length}</span></div>${rows.map(item=>{const person=resolveApplicationPerson(item),source=item.recordSource||'application',locked=applicationDecisionLocked(item)||selectionIsLocked();return `<article class="rounded-xl border border-red-100 bg-white p-3"><div class="flex flex-wrap items-start justify-between gap-2"><div class="min-w-0"><p class="font-black text-slate-900">${teamEscape(person.name)}</p><p class="mt-1 text-[11px] font-bold text-slate-500">Chest: ${teamEscape(person.chestNo||'—')} • ${applicationStatusBadge(applicationStatus(item))}</p>${item.note?`<p class="mt-2 line-clamp-2 text-xs font-semibold text-slate-600">${teamEscape(item.note)}</p>`:''}</div><div class="flex shrink-0 gap-1"><button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${source}','not_selected')" class="rounded-lg bg-red-600 px-2.5 py-2 text-[10px] font-black text-white ${disabledActionClass(locked)}">Reject</button><button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${source}','selected')" class="rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-black text-white ${disabledActionClass(locked)}">Approve</button><button onclick="openTeamApplicationDetail('${item.id}','${source}')" class="rounded-lg bg-slate-900 px-2.5 py-2 text-[10px] font-black text-white">Close</button></div></div></article>`}).join('')}</section>`};
+
+        const renderTeamEventPendingSummary=e=>{const rows=pendingEventApplicationsFor(e.id);if(!rows.length)return'';return `<div class="space-y-1 rounded-xl border border-red-200 bg-white/80 p-2"><div class="text-[10px] font-black uppercase text-red-700">Open Registration Pending</div>${rows.slice(0,3).map(item=>{const person=resolveApplicationPerson(item);return `<button onclick="openTeamApplicationDetail('${item.id}','${item.recordSource||'application'}')" class="flex w-full items-center justify-between gap-2 rounded-lg bg-red-50 px-2 py-1.5 text-left text-[11px] font-bold text-red-800"><span class="truncate">${teamEscape(person.name)}</span><span class="shrink-0">Review</span></button>`}).join('')}${rows.length>3?`<button onclick="openTeamEventCardView('${e.id}')" class="w-full rounded-lg bg-red-600 px-2 py-1.5 text-[10px] font-black text-white">View ${rows.length-3} more</button>`:''}</div>`};
+        window.openTeamEventCardView=id=>{const e=events.find(item=>item.id===id);if(!e)return showToast('Event details not found','error');const capacity=applicationCapacity(e),pending=pendingEventApplicationsFor(e.id),state=eventEntryState(e,capacity,pending.length);document.getElementById('team-event-card-title').textContent=e.name||'Event';document.getElementById('team-event-card-meta').innerHTML=renderEventMetaChips(e,capacity);document.getElementById('team-event-card-status').innerHTML=`<span class="${eventStatusBadge(state,capacity)}">${teamEscape(eventStatusLabel(state,capacity,pending.length))}</span>`;document.getElementById('team-event-card-body').innerHTML=`<div class="space-y-4"><section class="space-y-2">${renderTeamEventSlots(e,{popup:true})}</section>${renderTeamEventApplications(e)}</div>`;const dialog=document.getElementById('team-event-card-dialog');dialog.classList.remove('hidden');dialog.classList.add('grid');window.lucide?.createIcons?.()};
+        window.closeTeamEventCardView=()=>{const dialog=document.getElementById('team-event-card-dialog');dialog.classList.add('hidden');dialog.classList.remove('grid')};
+        const selectedApplicationsFor = eventId => registrationApplications.filter(item=>item.eventId===eventId&&item.team===currentTeam&&applicationSelected(item));
+        const applicationCapacity = event => {const ids=new Set(selectedApplicationsFor(event.id).map(item=>item.studentId||item.participantId).filter(Boolean));registrations.filter(item=>item.eventId===event.id&&item.team===currentTeam).flatMap(item=>[...(item.studentIds||[]),...(item.participantIds||[])]).forEach(id=>ids.add(id));return capacityState(event,ids.size)};
+
+        window.renderTeamApplications = () => {
+            const box=document.getElementById('team-applications-list');
+            if(!box||!currentTeam)return;
+            const mode=document.getElementById('team-application-mode');
+            if(mode&&document.activeElement!==mode)mode.value=teamRegistrationPolicy.mode;
+            document.getElementById('team-application-policy-text').textContent=registrationConfig.registrationPortalEnabled===false||registrationConfig.globalStatus==='closed'?'Applications are globally locked by Admin.':selectionIsLocked()?'Team selection deadline has passed; decisions are read-only.':`Team ${currentTeam} is ${teamRegistrationPolicy.mode.replace('_',' ')}.`;
+            const includeUnrequested=document.getElementById('team-application-include-unrequested')?.checked;
+            let rows=includeUnrequested?[...teamApplicationRows(),...notRequestedApplicationRows()]:teamApplicationRows();
+            const search=(document.getElementById('team-application-search')?.value||'').trim().toLowerCase(),statusFilter=document.getElementById('team-application-status-filter')?.value||'',categoryFilter=document.getElementById('team-application-category-filter')?.value||'';
+            rows=rows.filter(item=>{const event=applicationEvent(item),person=resolveApplicationPerson(item),status=applicationStatus(item),category=event.category||item.category||person.student?.category||'General',haystack=`${person.name||''} ${person.chestNo||''} ${item.eventName||''} ${event.name||''} ${category}`.toLowerCase();return(!search||haystack.includes(search))&&(!statusFilter||(statusFilter==='not_requested'?status==='not_requested':applicationStatusGroup(status)===statusFilter))&&(!categoryFilter||category===categoryFilter)&&applicationPersonAllowed(item)});
+            document.getElementById('team-application-count').textContent=rows.length;
+            box.innerHTML=`<table class="min-w-[1280px] table-auto text-left text-xs"><thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr>${['Student','Chest','Event','Category','Stage / Type','Status','Description','Links','Image','Actions'].map(value=>`<th class="p-3">${value}</th>`).join('')}</tr></thead><tbody class="divide-y">${rows.map(item=>{const event=applicationEvent(item),person=resolveApplicationPerson(item),media=teamApplicationMedia(item),locked=applicationDecisionLocked(item)||selectionIsLocked(),status=applicationStatus(item),isUnrequested=item.recordSource==='not_requested',finalizable=item.recordSource==='application'&&!locked&&['selected','applied','under_review','waitlisted','pending'].includes(status),category=event.category||item.category||person.student?.category||'General';return`<tr class="align-top ${isUnrequested?'bg-slate-50/70':['rejected','not_selected'].includes(status)?'bg-red-50/30':status==='pending'||status==='applied'?'bg-amber-50/20':''}"><td class="p-3 font-black">${teamEscape(person.name)}</td><td class="p-3 font-mono">${teamEscape(person.chestNo||'—')}</td><td class="p-3 font-bold">${teamEscape(isUnrequested?'No self registration request':(item.eventName||event.name||'Event'))}</td><td class="p-3">${teamEscape(category)}</td><td class="p-3">${teamEscape(isUnrequested?'—':(event.stage||'Off-Stage'))}<br>${teamEscape(isUnrequested?'—':(event.type||'Single'))}</td><td class="p-3">${isUnrequested?'<span class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-500">Not requested</span>':applicationStatusBadge(status)}</td><td class="max-w-56 truncate p-3">${teamEscape(item.note||'—')}</td><td class="p-3">${media.youtube?`<a href="${teamEscape(media.youtube)}" target="_blank" rel="noopener" class="mr-2 text-red-600">▶</a>`:''}${media.reference?`<a href="${teamEscape(media.reference)}" target="_blank" rel="noopener" class="text-indigo-600">↗</a>`:''}</td><td class="p-3">${media.image?`<button onclick="openTeamApplicationDetail('${item.id}','${item.recordSource}')"><img src="${media.image.data}" class="h-10 w-10 rounded object-cover" alt=""></button>`:'—'}</td><td class="p-3"><div class="flex gap-1">${isUnrequested?'<span class="rounded bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">No action</span>':`<button onclick="openTeamApplicationDetail('${item.id}','${item.recordSource}')" class="rounded bg-indigo-50 p-2 text-indigo-700" aria-label="View"><i data-lucide="eye" class="h-4 w-4"></i></button><button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${item.recordSource}','selected')" class="rounded bg-emerald-50 p-2 text-emerald-700 ${disabledActionClass(locked)}" aria-label="Select"><i data-lucide="check" class="h-4 w-4"></i></button><button ${locked?'disabled':''} onclick="decideUnifiedApplication('${item.id}','${item.recordSource}','not_selected')" class="rounded bg-red-50 p-2 text-red-700 ${disabledActionClass(locked)}" aria-label="Reject"><i data-lucide="x" class="h-4 w-4"></i></button>${item.recordSource==='application'?`<button ${finalizable?'':'disabled'} onclick="finalizeEventApplications('${item.eventId}')" class="rounded bg-slate-50 p-2 text-slate-700 ${disabledActionClass(!finalizable)}" aria-label="Finalize event"><i data-lucide="lock-keyhole" class="h-4 w-4"></i></button>`:''}`}</div></td></tr>`}).join('')}</tbody></table>`;
+            window.lucide?.createIcons?.()
+        };
+        window.decideUnifiedApplication=async(id,source,status)=>{if(registrationIsLocked()&&status==='selected')return showToast('Final registration is locked by Admin','error');if(selectionIsLocked())return showToast('Team selection deadline has passed','error');const item=teamApplicationRows().find(row=>row.id===id&&(!source||row.recordSource===source));if(!item)return showToast('Application details not found','error');if(applicationDecisionLocked(item))return showToast('This application decision is locked. The student must submit a new application.','error');if(!confirmApplicationDecision(status,item))return;if(source==='application')return window.decideStudentApplication(id,status,{confirmed:true});const request=registrationRequests.find(row=>row.id===id);if(!request||request.team!==currentTeam)return;if(status==='not_selected'){await updateDoc(doc(db,'registrationRequests',id),{status:'rejected',decisionByUid:auth.currentUser.uid,decisionAt:Date.now(),...registrationActorPayload('decision')});window.closeTeamApplicationDetail();window.renderTeamEvents();window.renderTeamApplications?.();return showToast('Request rejected')}const existingIds=registrations.filter(row=>(row.studentIds||[]).includes(request.relatedStudentId)).map(row=>row.eventId),usage=participationUsage(existingIds,events,registrationConfig),now=Date.now(),actor=registrationActorPayload('created');for(const eventId of request.eventIds||[]){const target=events.find(row=>row.id===eventId),decision=participationLimitDecision(registrationConfig,target,usage),teamCount=registrations.filter(row=>row.eventId===eventId&&row.team===currentTeam).reduce((sum,row)=>sum+(row.studentIds||row.participantIds||[]).length,0);if(!decision.allowed)return showToast(`Participation limit reached: ${decision.exceeded[0].key}`,'error');if(capacityState(target,teamCount).state!=='available')return showToast('Event capacity is full','error');for(const key of decision.buckets)usage[key]=(usage[key]||0)+1;const slot=target.type==='Group'?chooseApplicationEntrySlot(request,target):firstAvailableEntrySlot(target);if(!slot)return showToast('Final entries are full','error');if(slot<0)return showToast('Selected entry is full. Choose another entry.','error');await appendRequestToEntry(request,target,slot,now,actor)}await updateDoc(doc(db,'registrationRequests',id),{status:'selected',decisionByUid:auth.currentUser.uid,decisionAt:now,...registrationActorPayload('decision')});window.closeTeamApplicationDetail();window.renderTeamEvents();window.renderTeamApplications?.();showToast('Request selected and registered')};
+
+        window.saveTeamApplicationPolicy=async()=>{if(registrationConfig.allowTeamLeaderPause===false)return showToast('Admin has disabled Team Leader policy changes','error');const mode=document.getElementById('team-application-mode').value;await setDoc(doc(db,'teamRegistrationPolicies',currentTeam),{team:currentTeam,mode,studentApplicationsEnabled:mode!=='closed',changedByUid:auth.currentUser.uid,changedByRole:'teamLeader',changedAt:Date.now()},{merge:true});showToast('Team application policy saved')};
+        window.decideStudentApplication=async(id,status,options={})=>{if(registrationIsLocked())return showToast('Final registration is locked by Admin','error');if(selectionIsLocked())return showToast('Team selection deadline has passed','error');const item=registrationApplications.find(row=>row.id===id);if(!item||item.team!==currentTeam)return;if(applicationDecisionLocked(item))return showToast('This application decision is locked. The student must submit a new application.','error');if(!options.confirmed&&!confirmApplicationDecision(status,item))return;const event=events.find(row=>row.id===item.eventId);if(status==='selected'){if(applicationAlreadyRegistered(item,event))return showToast('This applicant is already in a final entry','error');const slot=chooseApplicationEntrySlot(item,event);if(slot===0)return showToast('Approval cancelled','error');if(slot<0)return showToast('Selected entry is full. Choose another entry.','error');try{await appendApplicationToEntry(item,'finalized',slot)}catch(error){return showToast(error.message||'Could not add applicant to final entry','error')}}else{await updateDoc(doc(db,'registrationApplications',id),{status,decisionByUid:auth.currentUser.uid,decisionByName:currentLeaderActor().name,decisionByRole:currentLeaderActor().role,decisionAt:Date.now(),updatedAt:Date.now()})}window.closeTeamApplicationDetail();window.renderTeamEvents();window.renderTeamApplications?.();showToast(status==='selected'?'Application approved and added to final entry':'Application rejected')};
+        window.finalizeEventApplications=async eventId=>{if(registrationIsLocked())return showToast('Final registration is locked by Admin','error');const event=events.find(item=>item.id===eventId),selected=selectedApplicationsFor(eventId).filter(item=>!applicationAlreadyRegistered(item,event));if(!event||!selected.length)return showToast('No selected applicants waiting for final entry','error');for(const item of selected){const slot=event.type==='Group'?chooseApplicationEntrySlot(item,event):firstAvailableEntrySlot(event);if(!slot)return showToast('Final entries are full','error');if(slot<0)return showToast('Selected entry is full. Choose another entry.','error');await appendApplicationToEntry(item,'finalized',slot)}window.renderTeamEvents();window.renderTeamApplications?.();showToast('Final participants saved')};
+
+        window.openTeamEventInfo=id=>{const event=events.find(item=>item.id===id);if(!event)return;document.getElementById('team-event-info-title').textContent=event.name||'Event';const rules=event.rules||event.notes||event.description||'',criteria=Array.isArray(event.criteria)&&event.criteria.length?event.criteria:String(event.criteriaText||'').split(/\n|;/).map(line=>{const [name,mark]=line.split(/\s*-\s*/);return{name,maximumMark:mark}}).filter(item=>item.name);document.getElementById('team-event-info-body').innerHTML=`${rules?`<section class="rounded-2xl border border-indigo-100 bg-indigo-50 p-4"><h3 class="flex items-center gap-2 text-xs font-black uppercase text-indigo-900"><i data-lucide="scroll-text" class="h-4 w-4"></i>Event Rules</h3><p class="mt-3 whitespace-pre-line text-sm font-semibold leading-relaxed text-indigo-950">${teamEscape(rules)}</p></section>`:'<section class="rounded-2xl border border-dashed p-4 text-xs font-bold text-slate-400">No event rules configured.</section>'}${criteria.length?`<section class="rounded-2xl border border-violet-100 bg-violet-50 p-4"><h3 class="flex items-center gap-2 text-xs font-black uppercase text-violet-900"><i data-lucide="list-checks" class="h-4 w-4"></i>Judging Criteria</h3><div class="mt-3 divide-y divide-violet-100">${criteria.map((item,index)=>`<div class="flex items-center justify-between gap-3 py-2.5 text-sm"><span class="font-semibold text-violet-950">${index+1}. ${teamEscape(item.name||item.label||'Criterion')}</span><b class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs text-violet-700">${teamEscape(item.maximumMark??item.mark??'—')} marks</b></div>`).join('')}</div>${event.maximumMark?`<div class="mt-3 flex justify-between border-t border-violet-200 pt-3 text-xs font-black text-violet-900"><span>Maximum Mark</span><span>${teamEscape(event.maximumMark)} marks</span></div>`:''}</section>`:'<section class="rounded-2xl border border-dashed p-4 text-xs font-bold text-slate-400">No judging criteria configured.</section>'}`;const dialog=document.getElementById('team-event-info-dialog');dialog.classList.remove('hidden');dialog.classList.add('flex');window.lucide?.createIcons?.()};window.closeTeamEventInfo=()=>{const dialog=document.getElementById('team-event-info-dialog');dialog.classList.add('hidden');dialog.classList.remove('flex')};
+        window.renderTeamEvents = () => {
+            if(!currentTeam) return;
+            const filter = document.getElementById('filter-event-cat').value;
+            const stageFilter = document.getElementById('filter-event-stage').value;
+            const genderFilter = document.getElementById('filter-event-gender')?.value || '';
+            const stateFilter = document.getElementById('filter-event-status')?.value || '';
+            const search = (document.getElementById('filter-event-search')?.value || '').trim().toLowerCase();
+            const grid = document.getElementById('team-events-grid');
+            const locked = registrationIsLocked();
+            const status = document.getElementById('event-registration-lock-status');
+            if(status) {
+                status.className = `rounded-xl border px-4 py-3 text-xs font-black ${locked ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`;
+                status.textContent = finalRegistrationLockAt() ? (locked ? `Final entries locked on ${finalRegistrationLockLabel()}` : `Final entries open until ${finalRegistrationLockLabel()}`) : 'Final entries are open; no lock time is configured.';
+            }
+            let list = events.filter(leaderCanViewEvent);
+            if(filter && filter!=='All') list=list.filter(e => e.category === filter || e.category === 'General' || e.category === 'All');
+            if(stageFilter) list = list.filter(e => e.stage === stageFilter);
+            if(genderFilter) list = list.filter(e => eventGender(e) === 'Both' || eventGender(e) === genderFilter);
+            if(search) list = list.filter(e => `${e.name || ''} ${e.category || ''} ${e.stage || ''} ${e.rules || e.notes || e.description || ''}`.toLowerCase().includes(search));
+            if(stateFilter) list = list.filter(e => { const selectedCapacity=applicationCapacity(e), pendingCount=pendingEventApplicationsFor(e.id).length, currentState=eventEntryState(e,selectedCapacity,pendingCount); return currentState===stateFilter; });
+            if(list.length===0){ grid.innerHTML='<div class="col-span-full text-center text-slate-400 italic py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">No events found</div>'; return; }
+            grid.innerHTML=list.map(e=>{
+                const catBadge = e.category === 'General' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500';
+                const stageBadge = e.stage === 'On-Stage' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700';
+                const selectedCapacity=applicationCapacity(e),pendingApplications=pendingEventApplicationsFor(e.id),cardState=eventEntryState(e,selectedCapacity,pendingApplications.length),cardClass=eventCardClasses(cardState);
+                return `<div id="event-card-${e.id}" class="flex h-[22rem] flex-col rounded-2xl border ${cardClass} p-4 shadow-sm transition duration-300"><div class="mb-3 flex items-start justify-between gap-2"><div class="min-w-0 flex-1"><div class="mb-2 flex items-center justify-between gap-2"><span class="text-[10px] font-black uppercase ${cardState==='overloaded'?'text-red-700':'text-slate-500'}">${selectedCapacity.count}/${selectedCapacity.capacity} selected${pendingApplications.length?` • ${pendingApplications.length} pending`:''}</span><span class="${eventStatusBadge(cardState,selectedCapacity)}">${eventStatusLabel(cardState,selectedCapacity,pendingApplications.length)}</span></div><h4 class="line-clamp-2 text-base font-black leading-snug text-slate-800">${teamEscape(e.name)}</h4><div class="mt-2 flex flex-wrap gap-1.5"><span class="rounded px-2 py-0.5 text-[9px] font-bold uppercase ${catBadge}">${teamEscape(e.category)}</span><span class="rounded px-2 py-0.5 text-[9px] font-bold uppercase ${stageBadge}">${teamEscape(e.stage||'Off-Stage')}</span><span class="rounded bg-pink-50 px-2 py-0.5 text-[9px] font-bold uppercase text-pink-700">${teamEscape(eventGender(e))}</span></div></div></div><div class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">${renderTeamEventSlots(e)}${renderTeamEventPendingSummary(e)}</div><div class="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200/70 pt-3"><button type="button" onclick="openTeamEventInfo('${e.id}')" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-2 py-2 text-[10px] font-black text-indigo-700"><i data-lucide="info" class="h-3.5 w-3.5"></i>Info</button><button type="button" onclick="openTeamEventCardView('${e.id}')" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2 text-[10px] font-black text-slate-700"><i data-lucide="eye" class="h-3.5 w-3.5"></i>View</button></div></div>`;
+            }).join('');
+            lucide.createIcons();
+        };
+        setInterval(() => {
+            if(currentTeam && currentTab === 'available') {
+                if(registrationIsLocked()) closeRegModal();
+                window.renderTeamEvents();
+            }
+        }, 15000);
+
+        window.renderStudentRegs = () => {
+            if(!currentTeam) return;
+            const search = document.getElementById('myreg-search').value.toLowerCase();
+            const cat = document.getElementById('myreg-cat-filter').value;
+            const gender = document.getElementById('myreg-gender-filter')?.value || '';
+            let list = scopedTeamStudents();
+            if(cat && cat !== 'All') list = list.filter(s => s.category === cat);
+            if(gender) list = list.filter(s => studentGender(s) === gender);
+            if(search) list = list.filter(s => s.name.toLowerCase().includes(search));
+            list.sort((a,b) => (parseInt(a.chestNo)||0) - (parseInt(b.chestNo)||0));
+            const grid = document.getElementById('myreg-student-grid');
+            if(list.length === 0) { grid.innerHTML = `<div class="col-span-full text-center text-slate-400 italic py-10">No students found</div>`; return; }
+            grid.innerHTML = list.map(s => {
+                const myRegs = registrations.filter(r => r.studentIds.includes(s.id));
+                const count = myRegs.length;
+                const activeClass = count > 0 ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 bg-white';
+                return `<div onclick="openStudentDetails('${s.id}')" class="p-4 rounded-xl border ${activeClass} flex justify-between items-center cursor-pointer hover:shadow-md transition"><div><h4 class="font-bold text-slate-700">${s.name}</h4><p class="text-[10px] text-slate-400 font-bold uppercase">${s.category} • ${studentGender(s)} • ${s.chestNo || '-'}</p></div><div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-blue-600 shadow-sm">${count}</div></div>`;
+            }).join('');
+        };
+
+        window.openStudentDetails = (sid) => {
+            const s = students.find(x => x.id === sid);
+            if(!s || s.team !== currentTeam || !leaderCanManageStudent(s)) return showToast('You do not have access to this student', 'error');
+            const myRegs = registrations.filter(r => r.team === currentTeam && (r.studentIds || []).includes(sid));
+            document.getElementById('std-events-name').innerText = s.name;
+            document.getElementById('std-events-info').innerText = `Chest No: ${s.chestNo || '-'} • ${s.category} • ${studentGender(s)}`;
+            const listEl = document.getElementById('std-events-list');
+            if(myRegs.length === 0) { listEl.innerHTML = `<p class="text-sm text-slate-400 text-center italic py-4">Not registered in any events.</p>`; }
+            else {
+                listEl.innerHTML = myRegs.map(r => {
+                    const e = events.find(ev => ev.id === r.eventId);
+                    if(!e) return '';
+                    return `<div onclick="goToEventRegistration('${e.id}', ${r.slotIndex})" class="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-50 transition group"><div><h4 class="text-sm font-bold text-slate-700">${e.name}</h4><p class="text-[10px] text-slate-400 font-bold uppercase">Entry ${r.slotIndex} • ${e.stage||'Off-Stage'}</p></div><div class="text-blue-300 group-hover:text-blue-600 transition"><i data-lucide="external-link" class="w-4 h-4"></i></div></div>`;
+                }).join('');
+                lucide.createIcons();
+            }
+            document.getElementById('std-events-modal').classList.remove('hidden');
+        };
+
+        window.goToEventRegistration = (eid, slot) => {
+            document.getElementById('std-events-modal').classList.add('hidden');
+            if(!registrationIsLocked()) return window.openRegModal(eid, slot);
+            window.setTeamSubTab('available');
+            document.getElementById('filter-event-search').value = '';
+            document.getElementById('filter-event-stage').value = '';
+            document.getElementById('filter-event-cat').value = '';
+            document.getElementById('filter-event-gender').value = leaderGenderScope() === 'Both' ? '' : leaderGenderScope();
+            window.renderTeamEvents();
+            setTimeout(() => {
+                const card = document.getElementById(`event-card-${eid}`);
+                if(!card) return showToast('Event details not found', 'error');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('card-highlight');
+                setTimeout(() => card.classList.remove('card-highlight'), 2500);
+            }, 150);
+        };
+
+        window.closeStdEventsModal = () => document.getElementById('std-events-modal').classList.add('hidden');
+
+        const reportPlainCell = (value = '', extra = '') => `<td class="border border-black px-2 py-1 ${extra}">${teamEscape(value || '')}</td>`;
+        const reportHeaderCell = (value = '', extra = '') => `<th class="border border-black px-2 py-1 font-black ${extra}">${teamEscape(value || '')}</th>`;
+        const reportDate = value => value ? new Date(value).toLocaleString() : '—';
+
+        const normalizeReportGender = value => String(value || 'Both').toLowerCase();
+        const reportEventMatchesGender = (event, selectedGender = '') => {
+            const eventValue = normalizeReportGender(eventGender(event));
+            const selectedValue = String(selectedGender || '').toLowerCase();
+            if(!selectedValue) return true;
+            return eventValue === 'both' || eventValue === selectedValue;
+        };
+        const reportGenderSuffix = (event, selectedGender = '') => {
+            if(selectedGender) return '';
+            const value = normalizeReportGender(eventGender(event));
+            if(value === 'boys') return ' (B)';
+            if(value === 'girls') return ' (G)';
+            return '';
+        };
+        const reportEventTitle = (event, selectedGender = '') => `${event.name || ''}${reportGenderSuffix(event, selectedGender)}`;
+        const selfRegistrationReportRows = () => {
+            const cat = document.getElementById('report-cat-select').value;
+            const gender = document.getElementById('report-gender-filter')?.value || '';
+            const statusFilter = document.getElementById('report-status-filter')?.value || '';
+            return teamApplicationRows().filter(item => item.team === currentTeam && applicationPersonAllowed(item)).map(item => {
+                const event = applicationEvent(item), person = resolveApplicationPerson(item), status = applicationStatus(item);
+                return { item, event, person, status, group: applicationStatusGroup(status), category: event.category || item.category || person.student?.category || 'General', gender: person.student ? studentGender(person.student) : (item.gender || event.gender || '') };
+            }).filter(row => (!cat || cat === 'All' || row.category === cat) && (!gender || row.gender === gender) && (!statusFilter || row.group === statusFilter)).sort((a,b)=>String(a.category).localeCompare(String(b.category)) || (parseInt(a.person.chestNo)||99999)-(parseInt(b.person.chestNo)||99999) || String(a.person.name||'').localeCompare(String(b.person.name||'')));
+        };
+        const reportStatusShortCode = status => {
+            const value = String(status || '').toLowerCase();
+            if(['approved','selected','app'].includes(value)) return 'APP';
+            if(['rejected','not_selected','not-selected','rej'].includes(value)) return 'REJ';
+            return 'PEN';
+        };
+        const reportStatusGroupFromCode = code => code === 'APP' ? 'approved' : code === 'REJ' ? 'rejected' : 'pending';
+        const reportStatusCell = code => reportPlainCell(code, 'report-status-short font-black');
+        const reportSelectedCategories = () => {
+            const selected = document.getElementById('report-cat-select').value;
+            return selected && selected !== 'All' ? [selected] : ['General', ...categories.filter(category => category !== 'General')];
+        };
+        const reportSelfRegistrationScope = () => document.getElementById('report-selfreg-scope-filter')?.value || 'requesters';
+        const reportStudentPerson = student => ({ id: student.id, student, name: student.name || 'Student', chestNo: student.chestNo || '' });
+        const reportStudentMatchesCategory = (student, cat, reportEventIds) => cat === 'General' ? registrations.some(registration => registration.team === currentTeam && reportEventIds.has(registration.eventId) && (registration.studentIds || []).includes(student.id)) || student.category === 'General' : student.category === cat;
+        const reportCategoryTitleRow = (cat, colspan, first) => `<tr class="${first ? '' : 'report-category-break'}"><th colspan="${colspan}" class="border border-black px-2 py-2 text-left text-sm font-black uppercase">${teamEscape(categoryLabel(cat))}</th></tr>`;
+        const renderSelfRegistrationCategory = (cat, first = true) => {
+            const reportGender = document.getElementById('report-gender-filter')?.value || '';
+            const statusFilter = document.getElementById('report-status-filter')?.value || '';
+            const reportEvents = events.filter(e => leaderCanViewEvent(e) && e.category === cat && reportEventMatchesGender(e, reportGender)).sort((a,b)=>String(a.stage||'Off-Stage').localeCompare(String(b.stage||'Off-Stage')) || String(a.name||'').localeCompare(String(b.name||'')));
+            const eventIds = new Set(reportEvents.map(event => event.id));
+            const rowMap = new Map(), requestedKeys = new Set(), scope = reportSelfRegistrationScope();
+            selfRegistrationReportRows().filter(row => row.category === cat && eventIds.has(row.event.id || row.item.eventId || (row.item.eventIds || [])[0]) && (!reportGender || row.gender === reportGender)).forEach(row => {
+                const personKey = row.person.id || row.item.studentId || row.item.relatedStudentId || `${row.person.chestNo}|${row.person.name}|${row.category}`;
+                const eventId = row.event.id || row.item.eventId || (row.item.eventIds || [])[0];
+                const code = reportStatusShortCode(row.status || row.group);
+                if(statusFilter && reportStatusGroupFromCode(code) !== statusFilter) return;
+                requestedKeys.add(personKey);
+                if(scope !== 'not_requested') {
+                    if(!rowMap.has(personKey)) rowMap.set(personKey, { person: row.person, gender: row.gender, category: row.category, statuses: new Map() });
+                    rowMap.get(personKey).statuses.set(eventId, code);
+                }
+            });
+            if(scope !== 'requesters') scopedTeamStudents().filter(student => (!reportGender || studentGender(student) === reportGender) && reportStudentMatchesCategory(student, cat, eventIds)).forEach(student => {
+                if(requestedKeys.has(student.id)) return;
+                rowMap.set(student.id, { person: reportStudentPerson(student), gender: studentGender(student), category: student.category || 'General', statuses: new Map(), notRequested: true });
+            });
+            const reportPeople = [...rowMap.values()].filter(row => scope !== 'not_requested' || row.notRequested).sort((a,b)=>(parseInt(a.person.chestNo)||0)-(parseInt(b.person.chestNo)||0) || String(a.person.name||'').localeCompare(String(b.person.name||'')));
+            let header1 = `<tr><th colspan="3" class="border border-black px-2 py-1 font-black">Participant</th>${reportEvents.length?`<th colspan="${reportEvents.length}" class="border border-black px-2 py-1 font-black">${teamEscape(categoryLabel(cat))} Items</th>`:''}<th colspan="3" class="border border-black px-2 py-1 font-black">Status Total</th></tr>`;
+            let header2 = `<tr>${reportHeaderCell('Sl No.')}${reportHeaderCell('Chest No.')}${reportHeaderCell('Name','text-left')}`;
+            reportEvents.forEach(e => { header2 += `<th class="rotate border border-black"><div><span>${teamEscape(reportEventTitle(e, reportGender))}</span></div></th>`; });
+            header2 += `${reportHeaderCell('APP')}${reportHeaderCell('REJ')}${reportHeaderCell('PEN')}</tr>`;
+            const colspan = 6 + reportEvents.length;
+            const bodyHTML = reportPeople.length ? reportPeople.map((row,index) => {
+                let approvedCount = 0, rejectedCount = 0, pendingCount = 0;
+                const rowCells = reportEvents.map(event => {
+                    const code = row.statuses.get(event.id) || '';
+                    if(code === 'APP') approvedCount++; else if(code === 'REJ') rejectedCount++; else if(code === 'PEN') pendingCount++;
+                    return code ? reportStatusCell(code) : reportPlainCell('');
+                }).join('');
+                return `<tr>${reportPlainCell(String(index+1),'font-mono')}${reportPlainCell(row.person.chestNo || '-','font-mono font-black')}${reportPlainCell(row.person.name || '','text-left font-black')}${rowCells}${reportPlainCell(approvedCount ? String(approvedCount) : '')}${reportPlainCell(rejectedCount ? String(rejectedCount) : '')}${reportPlainCell(pendingCount ? String(pendingCount) : '')}</tr>`;
+            }).join('') : `<tr><td colspan="${colspan}" class="border border-black p-6 text-center text-slate-400 italic">No self registration requests match these filters</td></tr>`;
+            return `${reportCategoryTitleRow(cat, colspan, first)}${header1}${header2}${bodyHTML}`;
+        };
+        const renderSelfRegistrationReportTable = () => {
+            const table = document.getElementById('report-table-content');
+            const sections = reportSelectedCategories().map((cat,index)=>renderSelfRegistrationCategory(cat,index===0)).join('');
+            table.innerHTML = `<tbody>${sections}</tbody>`;
+        };
+        const renderParticipationCategory = (cat, first = true) => {
+            const reportGender = document.getElementById('report-gender-filter')?.value || '';
+            let allEvents = events.filter(e => leaderCanViewEvent(e) && e.category === cat && reportEventMatchesGender(e, reportGender));
+            const offStageEvents = allEvents.filter(e => !e.stage || e.stage === 'Off-Stage');
+            const onStageEvents = allEvents.filter(e => e.stage === 'On-Stage');
+            const reportEvents = [...offStageEvents, ...onStageEvents];
+            const reportEventIds = new Set(reportEvents.map(event => event.id));
+            const participatingGeneralStudentIds = cat === 'General' ? new Set(registrations.filter(registration => registration.team === currentTeam && reportEventIds.has(registration.eventId)).flatMap(registration => registration.studentIds || [])) : null;
+            const reportStudents = scopedTeamStudents().filter(student => (!reportGender || studentGender(student) === reportGender) && (cat === 'General' ? participatingGeneralStudentIds.has(student.id) : student.category === cat)).sort((a,b)=>(parseInt(a.chestNo)||0)-(parseInt(b.chestNo)||0));
+            let header1 = `<tr><th colspan="3" class="border border-black px-2 py-1 font-black">Participant</th>${reportEvents.length?`<th colspan="${reportEvents.length}" class="border border-black px-2 py-1 font-black">${teamEscape(categoryLabel(cat))} Items</th>`:''}<th colspan="3" class="border border-black px-2 py-1 font-black">Total</th></tr>`;
+            let header2 = `<tr>${reportHeaderCell('Sl No.')}${reportHeaderCell('Chest No.')}${reportHeaderCell('Name','text-left')}`;
+            reportEvents.forEach(e => { header2 += `<th class="rotate border border-black"><div><span>${teamEscape(reportEventTitle(e, reportGender))}</span></div></th>`; });
+            header2 += `${reportHeaderCell('Sgl')}${reportHeaderCell('Grp')}${reportHeaderCell('Gen')}</tr>`;
+            const colspan = 6 + reportEvents.length;
+            const bodyHTML = reportStudents.length ? reportStudents.map((s, index) => {
+                let singleCount = 0, groupCount = 0, generalCount = 0, rowCells = '';
+                reportEvents.forEach(e => {
+                    const reg = registrations.find(r => r.eventId === e.id && (r.studentIds||[]).includes(s.id) && r.team === currentTeam);
+                    if (reg) { rowCells += reportPlainCell('✓','font-black'); if(e.category === 'General') generalCount++; else if(e.type === 'Group') groupCount++; else singleCount++; }
+                    else rowCells += reportPlainCell('');
+                });
+                return `<tr>${reportPlainCell(String(index+1),'font-mono')}${reportPlainCell(s.chestNo || '-','font-mono font-black')}${reportPlainCell(s.name,'text-left font-black')}${rowCells}${reportPlainCell(singleCount ? String(singleCount) : '')}${reportPlainCell(groupCount ? String(groupCount) : '')}${reportPlainCell(generalCount ? String(generalCount) : '')}</tr>`;
+            }).join('') : `<tr><td colspan="${colspan}" class="border border-black p-6 text-center text-slate-400 italic">${cat === 'General' ? 'No students are participating in General events' : 'No students found in this category'}</td></tr>`;
+            return `${reportCategoryTitleRow(cat, colspan, first)}${header1}${header2}${bodyHTML}`;
+        };
+        const renderParticipationReportTable = () => {
+            const table = document.getElementById('report-table-content');
+            const sections = reportSelectedCategories().map((cat,index)=>renderParticipationCategory(cat,index===0)).join('');
+            table.innerHTML = `<tbody>${sections}</tbody>`;
+        };
+
+        window.renderReportTable = () => {
+            const table = document.getElementById('report-table-content');
+            table.classList.add('plain-report');
+            const type = document.getElementById('report-type-select')?.value || 'participation';
+            document.getElementById('report-status-filter')?.classList.toggle('hidden', type !== 'selfreg');
+            document.getElementById('report-selfreg-scope-filter')?.classList.toggle('hidden', type !== 'selfreg');
+            if(type === 'selfreg') renderSelfRegistrationReportTable(); else renderParticipationReportTable();
+        };
+
+        window.downloadReportPDF = () => {
+            const table = document.getElementById('report-print-area');
+            const cat = document.getElementById('report-cat-select').value || 'All';
+            const type = document.getElementById('report-type-select')?.value || 'participation';
+            if(document.getElementById('report-table-content').rows.length === 0) return showToast('Generate report first', 'error');
+            const status = document.getElementById('report-status-filter')?.value || 'all';
+            const label = type === 'selfreg' ? `Self_Registration_${status}` : 'Participation';
+            const opt = { margin: 0.15, pagebreak: { mode: ['css', 'legacy'], before: ['.report-category-break'], avoid: ['.report-pdf-header'] }, filename: `${label}_Report_${currentTeam}_${cat}_${new Date().getTime()}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, backgroundColor: '#ffffff' }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' } };
+            const header=document.querySelector('.print-header');
+            header?.classList.remove('hidden');
+            document.getElementById('print-category-name').textContent = cat === 'All' ? 'All Categories' : categoryLabel(cat);
+            document.getElementById('print-report-title').textContent = type === 'selfreg' ? 'Self Registration Report' : 'Participation Report';
+            document.getElementById('print-team-name').textContent = teamLabel(currentTeam);
+            const logo = document.getElementById('print-report-logo');
+            if(logo) {
+                if(homeConfig.logoUrl) { applyBase64Image(logo, homeConfig.logoUrl); logo.classList.remove('hidden'); }
+                else { logo.removeAttribute('src'); logo.classList.add('hidden'); }
+            }
+            table.classList.add('report-print-bw');
+            showToast('Generating PDF...', 'info');
+            html2pdf().from(table).set(opt).save().then(() => { header?.classList.add('hidden'); table.classList.remove('report-print-bw'); showToast('PDF Downloaded'); }).catch(error=>{table.classList.remove('report-print-bw');header?.classList.add('hidden');showToast(error.message||'PDF failed','error')});
+        };
+
+        window.downloadReportExcel = () => {
+            const table = document.getElementById('report-table-content');
+            if(!table.rows.length) return showToast('Generate report first', 'error');
+            const selectedCategories = reportSelectedCategories();
+            if((document.getElementById('report-cat-select')?.value || 'All') === 'All' && selectedCategories.length > 1) {
+                const wb = XLSX.utils.book_new();
+                selectedCategories.forEach(category => {
+                    const temp = document.createElement('table');
+                    temp.innerHTML = `<tbody>${(document.getElementById('report-type-select')?.value || 'participation') === 'selfreg' ? renderSelfRegistrationCategory(category, true) : renderParticipationCategory(category, true)}</tbody>`;
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(temp), String(categoryLabel(category) || category).slice(0, 31));
+                });
+                XLSX.writeFile(wb, `Report_${currentTeam}_All_Categories.xlsx`);
+                return;
+            }
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Report"});
+            XLSX.writeFile(wb, `Report_${currentTeam}.xlsx`);
+        };
+
+        // UPDATED REGISTRATION MODAL FUNCTIONS
+        window.openRegModal = (eid, slot) => {
+            if(registrationIsLocked()) return showToast('Event registrations are locked', 'error');
+            const e = events.find(ev => ev.id === eid);
+            if(!e || !leaderCanViewEvent(e)) return showToast('You do not have access to this program', 'error');
+            const r = registrations.find(x => x.eventId === eid && x.team === currentTeam && x.slotIndex === slot);
+            const protectedIds = (r?.studentIds || []).filter(id => { const student = students.find(item => item.id === id); return student && !leaderCanManageStudent(student); });
+            const ids = (r?.studentIds || []).filter(id => !protectedIds.includes(id));
+            const limit = (e.type === 'Group') ? parseInt(e.groupSize) : 1;
+
+            regModalData = { eid, slot, team: currentTeam, limit: Math.max(0, limit - protectedIds.length), totalLimit: limit, protectedIds, regId: r?.id };
+
+            document.getElementById('reg-modal-title').innerText = e.name;
+            document.getElementById('reg-modal-slot').innerText = `Entry ${slot}`;
+            document.getElementById('reg-modal-limit').innerText = `Max: ${Math.max(0, limit - protectedIds.length)}${protectedIds.length ? ` (${protectedIds.length} managed by another gender leader)` : ''}`;
+
+            let eligible = scopedTeamStudents().filter(s => isEligibleForEventGender(s, e));
+            if (e.category !== 'General' && e.category !== 'All') {
+                eligible = eligible.filter(s => s.category === e.category);
+            }
+
+            const listEl = document.getElementById('reg-student-list');
+            if (eligible.length === 0) {
+                listEl.innerHTML = `<p class="text-sm text-red-500 text-center py-4">No ${eventGender(e)} students found in category: ${e.category}</p>`;
+            } else {
+                // COMPACT LIST STYLE
+                listEl.innerHTML = eligible
+                    .sort((a, b) => (parseInt(a.chestNo) || 0) - (parseInt(b.chestNo) || 0))
+                    .map(s => `
+                        <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:bg-blue-50 cursor-pointer transition active:scale-[0.98]">
+                            <input type="checkbox" value="${s.id}" class="reg-chk w-4 h-4 rounded text-blue-600 border-gray-300" ${ids.includes(s.id) ? 'checked' : ''} onchange="checkRegLimit()">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-slate-700 text-xs">${s.name}</span>
+                                    <span class="text-[10px] font-bold bg-slate-100 px-1 py-0.5 rounded text-slate-600 font-mono">${s.chestNo || '-'}</span>
+                                </div>
+                                <div class="text-[9px] text-slate-400 uppercase font-bold">${s.category} • ${studentGender(s)}</div>
+                            </div>
+                        </label>
+                    `).join('');
+            }
+
+            updateRegCounter();
+            const modal = document.getElementById('reg-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('show');
+            setTimeout(() => {
+                document.getElementById('reg-panel').classList.add('open');
+            }, 10);
+        };
+
+        window.closeRegModal = () => {
+            document.getElementById('reg-panel').classList.remove('open');
+            setTimeout(() => {
+                const modal = document.getElementById('reg-modal');
+                modal.classList.remove('show');
+                modal.classList.add('hidden');
+            }, 250);
+        };
+
+        window.checkRegLimit = () => {
+            const checkedCount = document.querySelectorAll('.reg-chk:checked').length;
+            if (checkedCount > regModalData.limit) {
+                event.target.checked = false;
+                showToast(`Maximum ${regModalData.limit} student(s) allowed`, 'error');
+            }
+            updateRegCounter();
+        };
+
+        function updateRegCounter() {
+            const checkedCount = document.querySelectorAll('.reg-chk:checked').length;
+            document.getElementById('reg-counter').innerText = `${checkedCount}/${regModalData.limit}`;
+        }
+
+        window.submitRegistration = async () => {
+            if(registrationIsLocked()) { closeRegModal(); return showToast('Event registrations are locked', 'error'); }
+            const selectedIds = Array.from(document.querySelectorAll('.reg-chk:checked')).map(c => c.value);
+            const { eid, slot, team, regId, protectedIds = [] } = regModalData;
+            const ids = [...protectedIds, ...selectedIds];
+
+            if (selectedIds.length === 0 && protectedIds.length === 0) {
+                if (regId) {
+                    if (await window.confirmAction('Remove this registration?')) {
+                        await deleteDoc(doc(db, "registrations", regId));
+                        showToast('Registration Cancelled', 'error');
+                        closeRegModal();
+                    }
+                } else {
+                    showToast('Please select at least one student', 'error');
+                }
+                return;
+            }
+
+            const otherRegs = registrations.filter(r => r.eventId === eid && !(r.team === team && r.slotIndex === slot));
+            const busy = otherRegs.flatMap(r => r.studentIds);
+            const conflict = ids.find(id => busy.includes(id));
+
+            if (conflict) {
+                const s = students.find(x => x.id === conflict);
+                showToast(`${s.name} is already registered in another slot!`, 'error');
+                return;
+            }
+
+            const eventInfo = events.find(e => e.id === eid);
+            const existingRegistration = regId ? registrations.find(registration => registration.id === regId) : null;
+            const changedAt = Date.now();
+            const actor = {
+                uid: auth.currentUser?.uid || '',
+                name: currentLeaderProfile?.displayName || currentLeaderProfile?.title || currentLeaderProfile?.username || 'Team Leader',
+                username: currentLeaderProfile?.username || '',
+                role: currentLeaderProfile?.title || 'Team Leader'
+            };
+            const previousParticipantMeta = existingRegistration?.participantMeta || {};
+            const participantMeta = Object.fromEntries(ids.map(studentId => [studentId, previousParticipantMeta[studentId] || { addedByUid: actor.uid, addedByName: actor.name, addedByUsername: actor.username, addedByRole: actor.role, addedAt: changedAt }]));
+            const d = { eventId: eid, eventName: eventInfo?.name || '', team, managedGender: leaderGenderScope(), slotIndex: slot, studentIds: ids, participantMeta, lastUpdatedByUid: actor.uid, lastUpdatedByName: actor.name, lastUpdatedGenderScope: leaderGenderScope(), lastUpdatedAt: changedAt, createdByUid: existingRegistration?.createdByUid || actor.uid, createdByName: existingRegistration?.createdByName || actor.name, createdAt: existingRegistration?.createdAt || changedAt };
+
+            try {
+                if (regId) {
+                    await updateDoc(doc(db, "registrations", regId), d);
+                } else {
+                    await addDoc(collection(db, "registrations"), d);
+                }
+                showToast('Registration Updated Successfully');
+                closeRegModal();
+            } catch (error) {
+                console.error("Registration error:", error);
+                showToast('Error updating registration', 'error');
+            }
+        };
+
+        // LOAD HOME CONFIG TO GET LOGO & FEST NAME
+        const loadHomeConfig = async () => {
+            try {
+                const snap = await getDoc(doc(db, "settings", "home_config"));
+                if(snap.exists()) {
+                    homeConfig = snap.data();
+                    cacheBranding(homeConfig);
+                    applyConfigToUI(homeConfig);
+                } else { homeConfig=normalizeBranding();clearBrandingCache();applyConfigToUI(homeConfig); }
+                const publicSnap = await getDoc(doc(db, "settings", "public_config"));
+                if(publicSnap.exists()) { publicConfig = publicSnap.data(); applyTeamPublicConfig(); }
+            } catch (e) {
+                console.log("Config load error", e);
+            } finally {
+                // ALWAYS run animation to remove loader
+                runSplashAnimation();
+            }
+        };
+
+        const teamWinnerEntries = () => results.filter(result=>!result.status||result.status==='published').flatMap(result=>{
+            const event=events.find(item=>item.id===result.eventId)||result,places=Array.isArray(result.places)&&result.places.length?result.places:[{winners:Array.isArray(result.winners?.first)?result.winners.first:[result.winners?.first].filter(Boolean),label:'First',value:result.points?.first},{winners:Array.isArray(result.winners?.second)?result.winners.second:[result.winners?.second].filter(Boolean),label:'Second',value:result.points?.second},{winners:Array.isArray(result.winners?.third)?result.winners.third:[result.winners?.third].filter(Boolean),label:'Third',value:result.points?.third}];
+            return places.flatMap((place,index)=>(place.winners||[]).map(winnerId=>{const participant=students.find(item=>item.id===winnerId),registration=registrations.find(item=>item.id===winnerId),team=participant?.team||registration?.team||'';return team===currentTeam?{result,event,place,position:index+1,winnerId,participant,registration}:null;})).filter(Boolean);
+        });
+        window.renderTeamCertificates=()=>{const box=document.getElementById('team-template-documents');if(!box)return;const rows=teamWinnerEntries().flatMap(entry=>templates.filter(raw=>{const t=normalizeTemplate(raw),a=t.appliesTo;return templateAvailableOn(t,'teamLeader')&&(!a.positions.length||a.positions.includes(entry.position))&&(!a.eventIds.length||a.eventIds.includes(entry.result.eventId))&&(!a.categories.length||a.categories.includes(entry.event.category));}).map(template=>({entry,template})));box.innerHTML=rows.length?rows.map(({entry,template})=>`<article class="rounded-xl border bg-slate-50 p-4"><p class="text-[10px] font-black uppercase text-indigo-600">${template.type} • ${entry.place.label||`Place ${entry.position}`}</p><h4 class="mt-1 font-black text-slate-900">${entry.participant?.name||entry.registration?.team||entry.winnerId}</h4><p class="text-xs font-bold text-slate-500">${entry.event.name||entry.result.eventName}</p><button onclick="downloadTeamTemplate('${template.id}','${entry.result.eventId}','${entry.winnerId}',${entry.position})" class="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-black text-white">Download</button></article>`).join(''):'<p class="col-span-full py-10 text-center text-sm font-bold text-slate-400">No eligible published certificates or posters.</p>';};
+        window.downloadTeamTemplate=async(templateId,eventId,winnerId,position)=>{const template=templates.find(item=>item.id===templateId),entry=teamWinnerEntries().find(item=>item.result.eventId===eventId&&item.winnerId===winnerId&&item.position===position);if(!template||!entry)return showToast('Document unavailable','error');const host=document.getElementById('team-template-generator');renderTemplate(host,template,{festName:brandingName(homeConfig),participantName:entry.participant?.name||entry.registration?.team||winnerId,chestNo:entry.participant?.chestNo||'',teamName:currentTeam,eventName:entry.event.name||entry.result.eventName,category:entry.event.category||'',gender:eventGender(entry.event),position:String(entry.place.label||`Place ${position}`).toUpperCase(),points:String(entry.place.earnedValue??entry.place.value??'')});await html2pdf().from(host).set({filename:`${entry.participant?.name||currentTeam}-${template.name}.pdf`,html2canvas:{scale:2},jsPDF:{orientation:template.page==='a4-portrait'?'portrait':'landscape',unit:'px',format:'a4'}}).save();};
+
+        const tryAccessTeamLogin = async (user) => {
+            if(currentTeam || teamAuthRedirecting) return;
+            const storedTeam = sessionStorage.getItem('team_leader_team') || '';
+            const storedUid = sessionStorage.getItem('team_access_uid') || '';
+            let accessSnap = null;
+            try { accessSnap = user && storedUid === user.uid ? await getDoc(doc(db, 'accessUsers', user.uid)) : null; }
+            catch(error) { console.error('Team access validation failed', error); teamAuthRedirecting = true; await signOut(auth).catch(() => {}); window.location.replace('login.html?next=team.html&message=Unable+to+verify+team+access'); return; }
+            const profile = accessSnap?.exists() ? accessSnap.data() : null;
+            if(!storedTeam || !teams.includes(storedTeam) || profile?.active !== true || profile.role !== 'teamLeader' || profile.team !== storedTeam) {
+                teamAuthRedirecting = true;
+                sessionStorage.removeItem('team_access_uid');
+                sessionStorage.removeItem('team_leader_team');
+                await signOut(auth);
+                window.location.replace('login.html?next=team.html');
+                return;
+            }
+            currentTeam = storedTeam;
+            currentLeaderProfile = { uid: user.uid, ...profile };
+            subscribeAdvancedRegistration();
+            document.getElementById('header-team-name').innerText = `${teamLabel(storedTeam)} • ${leaderGenderScope()}`;
+            document.getElementById('print-team-name').innerText = teamLabel(storedTeam);
+            ['filter-event-gender', 'myreg-gender-filter', 'team-schedule-gender', 'report-gender-filter'].forEach(applyLeaderGenderFilter);
+            document.getElementById('main-header').classList.add('visible');
+            const layout = document.getElementById('app-layout');
+            layout.classList.remove('opacity-0', 'pointer-events-none');
+            window.renderDashboard();
+            window.renderTeamEvents();
+            window.renderStudentRegs();
+            window.subscribeNotifications();
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if(teamAuthRedirecting) return;
+            if (!user) {
+                teamAuthRedirecting = true;
+                window.location.replace('login.html?next=team.html');
+                return;
+            }
+            {
+                document.getElementById('app-loader').classList.add('hide');
+                loadHomeConfig();
+
+                onSnapshot(doc(db, "settings", "public_config"), (d) => { publicConfig = d.exists() ? d.data() : {}; applyConfigToUI(homeConfig); });
+                onSnapshot(doc(db, "settings", "schedule_config"), (d) => { scheduleConfig = d.exists() ? d.data() : {}; if(currentTeam) window.renderTeamEvents(); });
+                onSnapshot(doc(db, "settings", "registration_config"), (d) => { registrationConfig=normalizeRegistrationConfig(d.exists()?d.data():{});if(currentTeam){window.renderTeamApplications();window.renderTeamEvents();} });
+                onSnapshot(doc(db, "settings", "general"), (d) => {
+                    if (d.exists()) {
+                        const data = d.data();
+                        categories = data.categories || [];
+                        teams = data.teams || [];
+                        teamDisplayNames = data.teamDisplayNames || {};
+                        categoryDisplayNames = data.categoryDisplayNames || {};
+                        festSetup = normalizeFestSetup(data.festSetup || {});
+                        applyFestCapabilities();
+                        window.renderDropdowns();
+                        tryAccessTeamLogin(user);
+                    }
+                });
+
+                onSnapshot(collection(db, "students"), (snap) => {
+                    students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if(currentTeam) { window.renderDashboard(); window.renderTeamCertificates(); }
+                });
+                onSnapshot(query(collection(db,'posterCertificateModels'),where('status','==','published'),where('downloadAccess.teamLeader','==',true)),snap=>{templates=snap.docs.map(d=>({id:d.id,...d.data()}));if(currentTeam)window.renderTeamCertificates();},error=>console.warn('Team poster and certificate models unavailable',error));
+                onSnapshot(collection(db, "events"), (snap) => {
+                    events = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(event=>event.status!=='draft');
+                    if(currentTeam) {
+                        ['team-schedule-date', 'team-schedule-category'].forEach(id => { const el = document.getElementById(id); if(el) delete el.dataset.ready; });
+                        window.renderTeamEvents();
+                        window.renderTeamSchedule();
+                        window.renderDashboard();
+                    }
+                });
+                onSnapshot(collection(db, "registrations"), (snap) => {
+                    registrations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if(currentTeam) {
+                        window.renderTeamEvents();
+                        window.renderStudentRegs();
+                        window.renderTeamSchedule();
+                        window.renderDashboard();
+                    }
+                });
+                onSnapshot(collection(db, "scheduleBreaks"), (snap) => {
+                    scheduleBreaks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    document.querySelectorAll('#team-schedule-date').forEach(el => { if(el) delete el.dataset.ready; });
+                    if(currentTeam) window.renderTeamSchedule();
+                });
+
+                onSnapshot(query(collection(db, "results"), where("status", "==", "published")), (snap) => {
+                    results = snap.docs.map(d => ({ eventId: d.id, ...d.data() }));
+                    if(currentTeam) window.renderDashboard();
+                });
+
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>

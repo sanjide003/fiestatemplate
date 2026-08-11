@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Poster and certificate backgrounds are version-controlled under
+    // assets/templates; the browser does not upload template assets.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
