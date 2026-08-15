@@ -266,7 +266,7 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if true;
       allow create, update: if isAdmin()
-        && hasOnly(['code', 'name', 'section', 'category', 'gender', 'type', 'limit', 'groupSize', 'minimumMembers', 'maximumMembers', 'stage', 'time', 'scheduleDate', 'scheduleDay', 'scheduleDayId', 'scheduleStage', 'scheduleStageId', 'scheduleDuration', 'scheduleEndTime', 'scheduleNotes', 'scheduleOrder', 'scheduleStatus', 'eligibleClasses', 'allowedParticipantTypes', 'allowedRegistrationChannels', 'resultWorkflow', 'resultMethod', 'criteria', 'objectiveRule', 'countRule', 'timeRule', 'multipleJudgeMethod', 'tieBreakMethod', 'gradeMode', 'duration', 'preparationTime', 'description', 'status', 'statusUpdatedAt', 'statusUpdatedByUid', 'validation', 'importMeta', 'scheduleRequirement', 'teamPolicy', 'scoreContribution', 'scoringPolicy', 'scoringOverride', 'maximumMark', 'notes', 'rules', 'updatedAt'])
+        && hasOnly(['code', 'name', 'section', 'category', 'gender', 'type', 'limit', 'groupSize', 'minimumMembers', 'maximumMembers', 'stage', 'time', 'scheduleDate', 'scheduleDay', 'scheduleDayId', 'scheduleStage', 'scheduleStageId', 'scheduleDuration', 'scheduleEndTime', 'scheduleNotes', 'scheduleOrder', 'scheduleStatus', 'eligibleClasses', 'allowedParticipantTypes', 'allowedRegistrationChannels', 'resultWorkflow', 'resultMethod', 'criteria', 'objectiveRule', 'countRule', 'timeRule', 'multipleJudgeMethod', 'tieBreakMethod', 'gradeMode', 'duration', 'preparationTime', 'description', 'status', 'statusUpdatedAt', 'statusUpdatedByUid', 'validation', 'importMeta', 'scheduleRequirement', 'teamPolicy', 'scoreContribution', 'scoringPolicy', 'scoringOverride', 'maximumMark', 'notes', 'rules', 'cancelled', 'cancelReason', 'cancelledAt', 'cancelledByUid', 'updatedAt'])
         && request.resource.data.name is string
         && isStringOrMissing('category')
         && isStringOrMissing('gender')
@@ -303,6 +303,10 @@ service cloud.firestore {
         && (!('scoringOverride' in request.resource.data) || request.resource.data.scoringOverride is map)
         && isNumberOrMissing('maximumMark')
         && isStringOrMissing('notes')
+        && isBoolOrMissing('cancelled')
+        && isStringOrMissing('cancelReason')
+        && isNumberOrMissing('cancelledAt')
+        && isStringOrMissing('cancelledByUid')
         && isNumberOrMissing('updatedAt');
       allow delete: if isAdmin();
     }
