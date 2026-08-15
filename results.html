@@ -542,6 +542,8 @@
         let teamTimelineResizeTimer;window.addEventListener('resize',()=>{clearTimeout(teamTimelineResizeTimer);teamTimelineResizeTimer=setTimeout(()=>{if(window.currentTab==='team')renderTeams(false);},160);},{passive:true});
         const personType=id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);return studentMap[id]||person?.sourceType==='student_directory'?'student':person?.participantType||'student';};
         const resultWinnerIds=result=>Array.isArray(result.places)&&result.places.length?result.places.flatMap(place=>place.winners||[]):[result.winners?.first,result.winners?.second,result.winners?.third].flat().filter(Boolean);
+        const resultEventCancelled=result=>eventMap[result.eventId]?.cancelled===true||result.cancelled===true;
+        const visiblePublishedResults=()=>results.filter(result=>(!result.status||result.status==='published')&&!resultEventCancelled(result));
         const resultMatchesAudience=result=>currentAudience==='all'||resultWinnerIds(result).some(id=>personType(id)===currentAudience);
         function resultAudienceKeys(){const cfg=resultsView().audiences||{};return (cfg.enabled||[]).filter(key=>festSetup.participantTypes.includes(key));}
         function defaultResultAudience(){const cfg=resultsView().audiences||{},keys=resultAudienceKeys();return keys.includes(cfg.default)?cfg.default:(keys[0]||(cfg.showAll!==false?'all':''));}
@@ -722,8 +724,7 @@
             const personAvatar = (person, size='h-8 w-8') => person?.photoData || person?.photo ? `<img src="${person.photoData || person.photo}" class="${size} shrink-0 rounded-full border border-white bg-slate-100 object-cover shadow-sm" alt="">` : `<span class="${size} grid shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">${String(person?.name || person?.participantName || '?').charAt(0).toUpperCase()}</span>`;
             window.studentForResultWinner = studentForWinner;
 
-            results.forEach(r => {
-                if (r.status && r.status !== 'published') return;
+            visiblePublishedResults().forEach(r => {
                 const contributes=eventContributesToTeamScore(eventMap[r.eventId]||r,festSetup);
                 const processWinner = (val, pts, place) => {
                     if (!val) return;
@@ -799,7 +800,7 @@
         window.renderCategoryButtons = () => {
             const container = document.getElementById('cat-filters');
             if(!container) return;
-            const cfg=resultsView().resultsTab||{},available=cfg.hideEmpty?[...new Set(results.filter(result=>result.status==='published'&&resultMatchesAudience(result)).map(result=>eventMap[result.eventId]?.category||result.category))]:categories,allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c!=='General')];
+            const cfg=resultsView().resultsTab||{},available=cfg.hideEmpty?[...new Set(visiblePublishedResults().filter(result=>resultMatchesAudience(result)).map(result=>eventMap[result.eventId]?.category||result.category))]:categories,allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c!=='General')];
             container.innerHTML = allCats.map(c => {
                 const isActive = (window.currentCat === '' && c === 'All') || (window.currentCat === c);
                 const filterVal = c === 'All' ? '' : c;
@@ -818,7 +819,7 @@
             const search = document.getElementById('global-search-input').value.toLowerCase();
 
             let filtered = results.filter(r => {
-                if (r.status && r.status !== 'published') return false; if(!resultMatchesAudience(r))return false;
+                if (r.status && r.status !== 'published') return false; if(resultEventCancelled(r))return false; if(!resultMatchesAudience(r))return false;
                 // FAST LOOKUP
                 const e = eventMap[r.eventId];
                 const name = (e ? e.name : r.eventName).toLowerCase();
@@ -1306,8 +1307,7 @@
             if(mode==='awards') {const configured=['Single','Group'].flatMap(type=>[...(scoringRules.configs?.[type]?.points||[]),...(scoringRules.configs?.[type]?.grades||[])]).map(rule=>rule.label).filter(Boolean);return [...new Set([...configured,'First','Second','Third',...results.flatMap(result=>resultAwards(result).map(award=>award.label))])];}
             return [];
         };
-        const teamBreakdownValue = (teamName,mode,key) => results.reduce((sum,result)=>{
-            if(result.status&&result.status!=='published')return sum;
+        const teamBreakdownValue = (teamName,mode,key) => visiblePublishedResults().reduce((sum,result)=>{
             const event=eventMap[result.eventId]||result;
             if(mode==='category'&&(event.category||result.category)!==key)return sum;
             if(mode==='gender'&&eventGender(event)!==key)return sum;
@@ -1327,7 +1327,7 @@
         const renderTeamTimeline = sortedTeams => {
             const section=document.getElementById('team-timeline-section'),host=document.getElementById('team-timeline-chart'),enabled=resultsView().teamsTab?.showTimeline!==false;
             section?.classList.toggle('hidden',!enabled);if(!enabled||!host)return;
-            const published=results.filter(result=>!result.status||result.status==='published').sort((a,b)=>Number(a.publishedAt?.toMillis?.()||a.publishedAt||a.timestamp?.toMillis?.()||a.timestamp||0)-Number(b.publishedAt?.toMillis?.()||b.publishedAt||b.timestamp?.toMillis?.()||b.timestamp||0));
+            const published=visiblePublishedResults().sort((a,b)=>Number(a.publishedAt?.toMillis?.()||a.publishedAt||a.timestamp?.toMillis?.()||a.timestamp||0)-Number(b.publishedAt?.toMillis?.()||b.publishedAt||b.timestamp?.toMillis?.()||b.timestamp||0));
             const names=sortedTeams.map(([name])=>name),totals=Object.fromEntries(names.map(name=>[name,0])),series=Object.fromEntries(names.map(name=>[name,[0]]));
             published.forEach(result=>{if(eventContributesToTeamScore(eventMap[result.eventId]||result,festSetup))resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const team=winnerTeam(result,id);if(team in totals)totals[team]+=Number(award.value||0);}));names.forEach(name=>series[name].push(totals[name]));});
             if(!published.length){const legend=names.map(name=>`<span class="flex items-center gap-1 text-[10px] font-bold"><i class="h-2.5 w-2.5 rounded-full" style="background:${teamColor(name,teamColors)}"></i>${teamLabel(name)}: 0</span>`).join('');host.innerHTML=`<div class="mb-3 flex flex-wrap gap-3">${legend}</div><svg viewBox="0 0 800 220" class="team-score-chart block h-auto w-full max-w-full rounded-xl bg-slate-50" preserveAspectRatio="xMidYMid meet" role="img" aria-label="All teams currently have zero points"><line x1="58" y1="170" x2="776" y2="170" stroke="#94a3b8"/><line x1="58" y1="24" x2="58" y2="170" stroke="#94a3b8"/><text x="42" y="174" text-anchor="end" font-size="10" fill="#64748b">0</text><text x="400" y="108" text-anchor="middle" font-size="13" font-weight="700" fill="#94a3b8">No results published yet — all teams have 0 points</text><text x="16" y="100" transform="rotate(-90 16 100)" text-anchor="middle" font-size="11" font-weight="700" fill="#475569">Points</text><text x="400" y="208" text-anchor="middle" font-size="11" font-weight="700" fill="#475569">Published time</text></svg>`;return;}
@@ -1349,7 +1349,7 @@
             document.getElementById('modal-team-points').innerText = `${points} Pts`;
 
             const teamResults = results.filter(r => {
-                if(r.status && r.status !== 'published') return false;
+                if(r.status && r.status !== 'published') return false;if(resultEventCancelled(r))return false;
                 const checkWin = (val) => {
                     if(!val) return false;
                     const arr = Array.isArray(val) ? val : [val];
@@ -1407,7 +1407,7 @@
         window.setTalentAudience=value=>{currentTalentAudience=value;currentTalentGender='all';talentExpandedGroups.clear();renderTalentAudienceSelector();renderTalent();};
         window.setTalentGender=value=>{currentTalentGender=value;talentExpandedGroups.clear();renderTalent();};
         window.toggleTalentGroup=encoded=>{const key=decodeURIComponent(encoded);talentExpandedGroups.has(key)?talentExpandedGroups.delete(key):talentExpandedGroups.add(key);renderTalent();};
-        const talentPerformanceRows = () => {const rows=[];results.filter(result=>!result.status||result.status==='published').forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',gender:studentGender(person),category:event.category||result.category||'General',photoData:person.photoData||person.photo||'',audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
+        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',gender:studentGender(person),category:event.category||result.category||'General',photoData:person.photoData||person.photo||'',audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
         const renderTalent = () => {
             const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=Math.max(1,Math.min(50,Number(cfg.topCount||3))),fields=cfg.cardFields||{},audienceCfg=cfg.audiences?.[currentTalentAudience]||{},allRows=talentPerformanceRows(),genders=[...new Set(allRows.map(row=>row.gender).filter(Boolean))],rows=currentTalentGender==='all'?allRows:allRows.filter(row=>row.gender===currentTalentGender),groups=new Map();
             if(audienceCfg.enabled===false){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white py-12 text-center text-slate-400">Top Talent is disabled for this audience.</div>';return;}
@@ -1457,7 +1457,7 @@
             document.getElementById('std-modal-score').innerText = s.score;
 
             const wins = results.filter(r => {
-                if(r.status && r.status !== 'published') return false;
+                if(r.status && r.status !== 'published') return false;if(resultEventCancelled(r))return false;
                 const check = (val) => { if(!val) return false; const arr = Array.isArray(val) ? val : [val]; return arr.includes(sid); };
                 return check(r.winners.first) || check(r.winners.second) || check(r.winners.third);
             });
