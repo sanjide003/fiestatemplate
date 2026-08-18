@@ -465,7 +465,7 @@
         };
         let currentEvent = null;
         let currentJudgeScore = null, festSetup = normalizeFestSetup();
-        const directEntryMode = () => currentEvent?.resultWorkflow==='direct' || (!currentEvent?.resultWorkflow&&currentEvent?.resultMethod==='direct') || ((currentEvent?.resultWorkflow||'default')!=='judged' && (festSetup.resultWorkflow === 'direct' || festSetup.resultWorkflow === 'hybrid'));
+        const directEntryMode = () => currentTab==='publish' || currentEvent?.resultWorkflow==='direct' || (!currentEvent?.resultWorkflow&&currentEvent?.resultMethod==='direct') || ((currentEvent?.resultWorkflow||'default')!=='judged' && (festSetup.resultWorkflow === 'direct' || festSetup.resultWorkflow === 'hybrid'));
         const publisherIsAdmin = () => ['admin','superAdmin'].includes(currentPublisher?.role);
         const overridePolicy = () => festSetup.competitionPolicies?.publishedCorrectionMode || 'revision_reversal';
         const canOverrideJudgeSheet = () => overridePolicy() === 'revision_reversal' || (overridePolicy() === 'admin_overwrite' && publisherIsAdmin());
@@ -579,7 +579,8 @@
             });
         };
 
-        const directPublishingTabEnabled = () => festSetup.resultWorkflow !== 'judged' || canOverrideJudgeSheet();
+        // Direct publishing is always available; legacy gate was: festSetup.resultWorkflow !== 'judged' || canOverrideJudgeSheet()
+        const directPublishingTabEnabled = () => true;
         window.applyPublishingWorkflow = () => {
             const judgesEnabled=judgeSheetsEnabled(),directEnabled=directPublishingTabEnabled();
             document.getElementById('nav-judge-sheets')?.classList.toggle('hidden',!judgesEnabled);
@@ -652,7 +653,7 @@
             if(!val) { list.style.display = 'none'; populateEvents(); return; }
 
             // Get current valid events based on status
-            const statusFiltered = events.filter(event => currentTab==='judgeSheets' ? resolvedEventWorkflow(event)==='judged'&&submittedScoresByEvent().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id) : resolvedEventWorkflow(event)==='direct'&&!hasProcessedResult(event.id));
+            const statusFiltered = events.filter(event => currentTab==='judgeSheets' ? resolvedEventWorkflow(event)==='judged'&&submittedScoresByEvent().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id) : !hasProcessedResult(event.id));
 
             const suggestions = statusFiltered.filter(e => e.name.toLowerCase().includes(val.toLowerCase()));
 
@@ -682,7 +683,7 @@
             const judge = document.getElementById('filter-judge').value;
             const search = document.getElementById('entry-search').value.toLowerCase();
 
-            let filtered = events.filter(event=>currentTab==='judgeSheets'?resolvedEventWorkflow(event)==='judged'&&reviewableJudgeScores().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id):currentTab==='publish'?resolvedEventWorkflow(event)==='direct'&&!hasProcessedResult(event.id):true);
+            let filtered = events.filter(event=>currentTab==='judgeSheets'?resolvedEventWorkflow(event)==='judged'&&reviewableJudgeScores().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id):currentTab==='publish'?!hasProcessedResult(event.id):true);
 
             if(cat && cat !== "") filtered = filtered.filter(e => e.category === cat);
             if(stage && stage !== "") filtered = filtered.filter(e => eventStageType(e) === stage);
@@ -836,7 +837,8 @@
             const gradeMap = new Map();
             document.querySelectorAll('[data-winner-row]').forEach(row => { const winner = row.querySelector('.winner-select')?.value; const gradeSelect = row.querySelector('.winner-grade-select'); const label = gradeSelect?.value; if(!winner || !label) return; const configured=scoringConfigForEvent(scoringRules,currentEvent).grades.find(grade=>grade.label===label);if(!gradeMap.has(label)) gradeMap.set(label, { key:configured?.key||'', label, minimumPercentage:configured?.minimumPercentage??null, value: Number(gradeSelect.selectedOptions[0]?.dataset.value || 0), winners: [] }); gradeMap.get(label).winners.push(winner); });
             const gradeAwards = Array.from(gradeMap.values());
-            if(!places.length && !gradeAwards.length) return window.showToast('Select at least one publishable award', 'error');
+            const displayOnlyEvent = currentEvent.resultMethod==='display_only' || currentEvent.scoreContribution==='display_only';
+            if(!places.length && !gradeAwards.length && !displayOnlyEvent) return window.showToast('Select at least one publishable award', 'error');
 
             const awards = [...places.flatMap(place => place.winners.map(winner => ({ winner, award: place.label }))), ...gradeAwards.flatMap(grade => grade.winners.map(winner => ({ winner, award: `Grade ${grade.label}` })))];
             const positionAwards = places.flatMap(place => place.winners.map(winner => ({ winner, award: place.label })));
@@ -879,9 +881,9 @@
         window.renderPublishQueue = () => {
             const list=document.getElementById('pending-list'),cat=document.getElementById('filter-cat').value,stage=document.getElementById('filter-stage').value,gender=document.getElementById('filter-gender').value,selectedEvent=document.getElementById('filter-event').value,search=document.getElementById('entry-search').value.trim().toLowerCase();
             const matches=event=>(!cat||event.category===cat)&&(!stage||eventStageType(event)===stage)&&(!gender||eventGender(event)===gender)&&(!selectedEvent||event.id===selectedEvent)&&(!search||event.name.toLowerCase().includes(search));
-            const directEvents=events.filter(event=>resolvedEventWorkflow(event)==='direct'&&!hasProcessedResult(event.id)&&matches(event));
-            const rows=directEvents.map(event=>`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name)}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</td><td class="px-4 py-3"><span class="rounded bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Direct Entry</span></td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Enter Result</button></td></tr>`).join('');
-            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} event(s) awaiting direct result entry</p></div><table class="w-full min-w-[720px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No direct-publishing events are waiting.</div>':''}`;
+            const directEvents=events.filter(event=>!hasProcessedResult(event.id)&&matches(event));
+            const rows=directEvents.map(event=>{const workflow=resolvedEventWorkflow(event),submitted=reviewableJudgeScores().filter(score=>score.eventId===event.id).length,workflowBadge=workflow==='judged'?'<span class="rounded bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">Judge / Direct</span>':'<span class="rounded bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Direct Entry</span>';return`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name)}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</td><td class="px-4 py-3">${workflowBadge}<span class="ml-1 rounded bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">${html(event.resultMethod||'manual')}</span>${submitted?`<span class="ml-1 rounded bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">${submitted} judge sheet(s)</span>`:''}</td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Enter / Publish</button></td></tr>`}).join('');
+            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} event(s) awaiting publisher result entry — judge sheet is optional here</p></div><table class="w-full min-w-[820px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow / Method</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No events are waiting for direct publishing.</div>':''}`;
             window.lucide?.createIcons();
         };
 
