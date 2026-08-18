@@ -1248,7 +1248,7 @@
             const grid = document.getElementById('myreg-student-grid');
             if(list.length === 0) { grid.innerHTML = `<div class="col-span-full text-center text-slate-400 italic py-10">No students found</div>`; return; }
             grid.innerHTML = list.map(s => {
-                const myRegs = registrations.filter(r => r.studentIds.includes(s.id));
+                const myRegs = registrations.filter(r => r.team === currentTeam && (r.studentIds || []).includes(s.id));
                 const count = myRegs.length;
                 const activeClass = count > 0 ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 bg-white';
                 return `<div onclick="openStudentDetails('${s.id}')" class="p-4 rounded-xl border ${activeClass} flex justify-between items-center cursor-pointer hover:shadow-md transition"><div><h4 class="font-bold text-slate-700">${s.name}</h4><p class="text-[10px] text-slate-400 font-bold uppercase">${s.category} • ${studentGender(s)} • ${s.chestNo || '-'}</p></div><div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-blue-600 shadow-sm">${count}</div></div>`;
