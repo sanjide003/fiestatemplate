@@ -326,7 +326,7 @@
                 <div id="pending-list" class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"></div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div id="entry-workbench" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-4 bg-white">
                     <!-- ENTRY FORM -->
                     <div id="entry-form" class="hidden space-y-4 animate-fade-in">
@@ -423,7 +423,7 @@
         import { buildTeamScoreLedger, createResultRevision, createScoringSnapshot, judgeScoreToResult, normalizeScoringRules, placeKeyAt, scoringConfigForEvent, scoringEnabled as scoringFlags } from './score-utils.js';
         import { normalizeFestSetup } from './fest-config.js';
 
-        let students = [], participants = [], events = [], registrations = [], categories = [], results = [], teams = [], judgeScores = [], judgeAssignments = [], scoringRules = {};
+        let students = [], participants = [], events = [], registrations = [], categories = [], results = [], teams = [], teamDisplayNames = {}, judgeScores = [], judgeAssignments = [], scoringRules = {};
         const publishRequest = new URLSearchParams(window.location.search);
         const requestedEventId = publishRequest.get('event') || '';
         const requestedScoreId = publishRequest.get('score') || '';
@@ -456,7 +456,7 @@
             const value = String(team || '').trim();
             if(!value) return 'Team';
             if(Array.isArray(festSetup.teamDisplayNames) && teams.includes(value)) return String(festSetup.teamDisplayNames[teams.indexOf(value)] || value);
-            const configured = festSetup.teamDisplayNames?.[value] || festSetup.teamNames?.[value] || festSetup.teamLabels?.[value];
+            const configured = teamDisplayNames?.[value] || festSetup.teamDisplayNames?.[value] || festSetup.teamNames?.[value] || festSetup.teamLabels?.[value];
             return String(configured || value);
         };
         const teamBadge = (team) => html(teamDisplayName(team));
@@ -749,7 +749,6 @@
             const form = document.getElementById('entry-form'); const empty = document.getElementById('entry-empty'); const badge = document.getElementById('existing-badge');
             if(!id) { form.classList.add('hidden'); empty.classList.remove('hidden'); currentEvent = null; return; }
 
-            document.querySelector('.tab-view').scrollIntoView({ behavior: 'smooth' });
             const e = events.find(x => x.id === id); currentEvent = e;
             document.getElementById('lbl-ev-name').innerText = e.name; document.getElementById('lbl-ev-type').innerText = `${e.type} • ${e.category} • ${eventGender(e)} • ${e.stage || 'Off-Stage'}`;
             document.getElementById('lbl-assignment-details').textContent=`${e.scheduleDate||'Date TBD'} • ${e.time||'Time TBD'} • ${e.scheduleStage||'Stage TBD'}`;document.getElementById('scoring-snapshot-label').textContent='Current Admin event rule';
@@ -1230,7 +1229,7 @@
                     document.getElementById('loader-screen').style.display = 'none';
                 }
 
-                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
+                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
                 onSnapshot(doc(db, "settings", "scoring_rules"), d => { scoringRules = d.exists() ? d.data() : {}; if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
                 onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
                 onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
