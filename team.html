@@ -486,9 +486,13 @@
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeScheduleParticipants()"></div>
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
             <div class="p-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shrink-0">
-                <h3 class="font-black text-xl pr-10" id="schedule-participants-title">Program</h3>
+                <h3 class="font-black text-xl pr-24" id="schedule-participants-title">Program</h3>
                 <p class="text-indigo-100 text-xs font-bold uppercase mt-1" id="schedule-participants-info"></p>
-                <button onclick="closeScheduleParticipants()" class="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition" aria-label="Close participant list"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <div id="schedule-participants-meta" class="mt-3 grid grid-cols-3 gap-2 text-[10px] font-black uppercase text-white"></div>
+                <div class="absolute top-4 right-4 flex gap-1.5">
+                    <button onclick="shareScheduleParticipants()" class="p-2 hover:bg-white/20 rounded-full transition" aria-label="Share participant list"><i data-lucide="share-2" class="w-5 h-5"></i></button>
+                    <button onclick="closeScheduleParticipants()" class="p-2 hover:bg-white/20 rounded-full transition" aria-label="Close participant list"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
             </div>
             <div class="p-4 overflow-y-auto bg-slate-50 flex-1 space-y-3" id="schedule-participants-list"></div>
         </div>
@@ -576,6 +580,7 @@
         let teamSchedulePage = 1;
         let teamSchedulePageSize = 30;
         let scheduleConfig = {}, festSetup = normalizeFestSetup(), registrationConfig = normalizeRegistrationConfig(), teamRegistrationPolicy = normalizeTeamRegistrationPolicy();
+        let activeScheduleShare = null;
         const applyFestCapabilities = () => { const show=scheduleEnabled(festSetup)&&festSetup.publicModules.schedule!==false; document.getElementById('nav-schedule')?.classList.toggle('hidden',!show); document.getElementById('tview-schedule')?.classList.toggle('hidden',!show); if(!show&&currentTab==='schedule') setTeamSubTab('dashboard'); };
         let homeConfig = {};
         let publicConfig = {};
@@ -929,15 +934,52 @@
             const participantIds = registrations.filter(registration => registration.eventId === eventId && registration.team === currentTeam).flatMap(registration => registration.studentIds || []);
             return [...new Set(participantIds)].map(studentId => students.find(student => student.id === studentId)).filter(student => student && student.team === currentTeam && leaderCanManageStudent(student)).sort((a,b) => (Number(a.chestNo) || 0) - (Number(b.chestNo) || 0));
         };
+        const scheduleShareText = (event, participants) => {
+            const schedule = teamEventScheduleParts(event);
+            const mentions = participants.map(student => `@${student.name || 'Student'}`).join(' ');
+            return `${event.name || 'Program'}
+${teamLabel(currentTeam)} • ${scheduleDateDisplay(schedule.date)} • ${schedule.time} • ${schedule.stage}
+Participants: ${participants.length}${mentions ? `
+${mentions}` : ''}`;
+        };
+        const scheduleShareCardHtml = (event, participants) => {
+            const schedule = teamEventScheduleParts(event);
+            return `<div style="width:1080px;background:#f8fafc;padding:48px;font-family:Inter,'Noto Sans Malayalam',Arial,sans-serif;color:#0f172a"><div style="overflow:hidden;border-radius:36px;background:white;box-shadow:0 24px 70px rgba(15,23,42,.18);border:1px solid #e2e8f0"><div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;padding:40px"><div style="font-size:24px;font-weight:900;text-transform:uppercase;letter-spacing:.18em;opacity:.8">My Schedule Participants</div><h1 style="margin:12px 0 8px;font-size:52px;line-height:1.05;font-weight:900">${teamEscape(event.name || 'Program')}</h1><div style="font-size:26px;font-weight:800;opacity:.9">${teamEscape(teamLabel(currentTeam))}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px"><div style="background:rgba(255,255,255,.16);border-radius:18px;padding:18px"><b style="display:block;font-size:16px;letter-spacing:.14em;text-transform:uppercase;opacity:.75">Date</b><span style="font-size:28px;font-weight:900">${teamEscape(scheduleDateDisplay(schedule.date))}</span></div><div style="background:rgba(255,255,255,.16);border-radius:18px;padding:18px"><b style="display:block;font-size:16px;letter-spacing:.14em;text-transform:uppercase;opacity:.75">Time</b><span style="font-size:28px;font-weight:900">${teamEscape(schedule.time)}</span></div><div style="background:rgba(255,255,255,.16);border-radius:18px;padding:18px"><b style="display:block;font-size:16px;letter-spacing:.14em;text-transform:uppercase;opacity:.75">Stage</b><span style="font-size:28px;font-weight:900">${teamEscape(schedule.stage)}</span></div></div></div><div style="padding:34px"><div style="font-size:20px;font-weight:900;color:#4f46e5;text-transform:uppercase;margin-bottom:18px">${participants.length} participant${participants.length===1?'':'s'}</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">${participants.map(student=>`<div style="display:flex;gap:14px;align-items:center;border:1px solid #e2e8f0;border-radius:18px;padding:16px;background:#f8fafc"><span style="min-width:72px;text-align:center;border-radius:14px;background:#eef2ff;color:#4338ca;font-size:22px;font-weight:900;padding:10px">${teamEscape(student.chestNo||'-')}</span><div><div style="font-size:24px;font-weight:900">${teamEscape(student.name||'Student')}</div><div style="font-size:16px;font-weight:800;color:#64748b;text-transform:uppercase">${teamEscape(student.category||'')} • ${teamEscape(studentGender(student))}</div></div></div>`).join('')}</div></div></div></div>`;
+        };
+        window.shareScheduleParticipants = async () => {
+            if(!activeScheduleShare) return showToast('Open a scheduled program first','error');
+            const { event, participants } = activeScheduleShare;
+            const text = scheduleShareText(event, participants);
+            const holder = document.createElement('div');
+            holder.style.cssText = 'position:fixed;left:-99999px;top:0;z-index:-1';
+            holder.innerHTML = scheduleShareCardHtml(event, participants);
+            document.body.appendChild(holder);
+            try {
+                if(!window.html2canvas) throw new Error('Image generator unavailable');
+                const canvas = await window.html2canvas(holder.firstElementChild, { scale: 1, backgroundColor: '#f8fafc', useCORS: true });
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+                const file = blob ? new File([blob], `${(event.name || 'schedule').replace(/[^a-z0-9_-]+/gi,'-')}-participants.png`, { type: 'image/png' }) : null;
+                if(file && navigator.canShare?.({ files: [file] }) && navigator.share) await navigator.share({ title: event.name || 'Schedule participants', text, files: [file] });
+                else {
+                    if(file) { const url = URL.createObjectURL(file), a = document.createElement('a'); a.href = url; a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1500); }
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+                    showToast('Image downloaded. Share text opened in WhatsApp.');
+                }
+            } catch(error) { console.error(error); window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer'); showToast('Image share unavailable; text share opened.'); }
+            finally { holder.remove(); }
+        };
         window.openScheduleParticipants = (eventId) => {
             const event = events.find(e => e.id === eventId);
             if(!event || !leaderCanViewEvent(event)) return;
             const participants = teamScheduleParticipants(eventId);
             const scope = leaderGenderScope();
+            const schedule = teamEventScheduleParts(event);
+            activeScheduleShare = { event, participants };
             document.getElementById('schedule-participants-title').textContent = event.name || 'Program';
-            document.getElementById('schedule-participants-info').textContent = `${currentTeam} • ${scope === 'Both' ? 'Boys & Girls' : scope} • ${participants.length} participant${participants.length === 1 ? '' : 's'}`;
+            document.getElementById('schedule-participants-info').textContent = `${teamLabel(currentTeam)} • ${scope === 'Both' ? 'Boys & Girls' : scope} • ${participants.length} participant${participants.length === 1 ? '' : 's'}`;
+            document.getElementById('schedule-participants-meta').innerHTML = [['Date', scheduleDateDisplay(schedule.date)], ['Time', schedule.time], ['Stage', schedule.stage]].map(([label,value]) => `<span class="rounded-xl bg-white/15 px-3 py-2"><b class="block text-[8px] text-indigo-100">${label}</b>${teamEscape(value)}</span>`).join('');
             const list = document.getElementById('schedule-participants-list');
-            list.innerHTML = participants.length ? `<section class="overflow-hidden rounded-2xl border border-indigo-300 ring-2 ring-indigo-100 bg-white"><div class="flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-100"><h4 class="font-black text-slate-800">${currentTeam}</h4><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">${participants.length} from our team</span></div><div class="divide-y divide-slate-100">${participants.map(student => `<button onclick="openScheduleStudentDetails('${student.id}')" class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-indigo-50"><span class="rounded-lg bg-indigo-50 px-2 py-1 font-mono text-xs font-black text-indigo-700">${student.chestNo || '-'}</span><div class="min-w-0 flex-1"><p class="font-bold text-slate-800">${student.name || 'Student'}</p><p class="text-[10px] font-bold uppercase text-slate-400">${student.category || ''} • ${studentGender(student)}</p></div><i data-lucide="chevron-right" class="h-4 w-4 text-indigo-400"></i></button>`).join('')}</div></section>` : '<div class="py-10 text-center"><i data-lucide="users-round" class="mx-auto mb-3 h-8 w-8 text-slate-300"></i><p class="text-sm font-bold text-slate-400">No participants from your team in your access scope.</p></div>';
+            list.innerHTML = participants.length ? `<section class="overflow-hidden rounded-2xl border border-indigo-300 ring-2 ring-indigo-100 bg-white"><div class="flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-100"><h4 class="font-black text-slate-800">${teamEscape(teamLabel(currentTeam))}</h4><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">${participants.length} from our team</span></div><div class="divide-y divide-slate-100">${participants.map(student => `<button onclick="openScheduleStudentDetails('${student.id}')" class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-indigo-50"><span class="rounded-lg bg-indigo-50 px-2 py-1 font-mono text-xs font-black text-indigo-700">${teamEscape(student.chestNo || '-')}</span><div class="min-w-0 flex-1"><p class="font-bold text-slate-800">${teamEscape(student.name || 'Student')}</p><p class="text-[10px] font-bold uppercase text-slate-400">${teamEscape(student.category || '')} • ${teamEscape(studentGender(student))}</p></div><i data-lucide="chevron-right" class="h-4 w-4 text-indigo-400"></i></button>`).join('')}</div></section>` : '<div class="py-10 text-center"><i data-lucide="users-round" class="mx-auto mb-3 h-8 w-8 text-slate-300"></i><p class="text-sm font-bold text-slate-400">No participants from your team in your access scope.</p></div>';
             document.getElementById('schedule-participants-modal').classList.remove('hidden');
             lucide?.createIcons?.();
         };
@@ -945,7 +987,7 @@
             window.closeScheduleParticipants();
             window.openStudentDetails(studentId);
         };
-        window.closeScheduleParticipants = () => document.getElementById('schedule-participants-modal').classList.add('hidden');
+        window.closeScheduleParticipants = () => { activeScheduleShare = null; document.getElementById('schedule-participants-modal').classList.add('hidden'); };
 
         const filteredTeamScheduleRows = () => {
             const category = document.getElementById('team-schedule-category')?.value || '';
