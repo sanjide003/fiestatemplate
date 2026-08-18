@@ -159,6 +159,18 @@
         .pending-item:active { transform: scale(0.98); }
         #fab-sim.dragging { cursor: grabbing; transition: none !important; }
         #fab-sim { touch-action: none; cursor: grab; }
+        .publisher-modal-open { overflow: hidden; }
+        @media (max-width: 767px) {
+            #entry-filter-section { padding: 0.75rem; }
+            #entry-filter-section .compact-input { padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 12px; }
+            .publish-queue-table { display: none; }
+            .publish-queue-cards { display: grid; }
+            .judge-sheet-table { display: none; }
+            .judge-sheet-cards { display: grid; }
+        }
+        @media (min-width: 768px) {
+            .publish-queue-cards, .judge-sheet-cards { display: none; }
+        }
 
         #search-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: none; }
         .suggestion-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
@@ -252,6 +264,18 @@
             </div>
         </div>
 
+
+        <!-- RESULT ENTRY MODAL -->
+        <div id="result-entry-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[120] hidden items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full sm:max-w-3xl max-h-[92vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+                <div class="flex items-center justify-between gap-3 bg-gradient-to-br from-indigo-600 to-blue-700 px-4 py-3 text-white">
+                    <div class="min-w-0"><p class="text-[10px] font-black uppercase tracking-wider text-indigo-100">Result Entry</p><h3 id="result-modal-title" class="truncate text-base font-black">Open Result</h3></div>
+                    <button onclick="closeResultEntryModal()" class="rounded-full bg-white/10 p-2 hover:bg-white/20" aria-label="Close result entry"><i data-lucide="x" class="h-4 w-4"></i></button>
+                </div>
+                <div id="result-entry-modal-body" class="flex-1 overflow-y-auto p-3 sm:p-4"></div>
+            </div>
+        </div>
+
         <!-- SIMULATION MODAL -->
         <div id="sim-modal" class="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] animate-fade-in relative overflow-hidden">
@@ -280,13 +304,13 @@
 
             <!-- Filters must appear above the submitted/direct event queue. -->
             <div id="entry-filter-section" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 relative">
+                <div class="bg-slate-50 p-2 sm:p-3 rounded-xl border border-slate-200 space-y-2 relative">
                     <div class="relative w-full">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                         <input type="text" id="entry-search" onkeyup="handleSearch(this.value)" placeholder="Search Event..." class="compact-input pl-9 bg-white" dir="auto" autocomplete="off">
                         <div id="search-suggestions"></div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-2">
                         <select id="filter-cat" onchange="populateEvents()" class="compact-input bg-white"><option value="">All Categories</option></select>
                         <select id="filter-stage" onchange="populateEvents()" class="compact-input bg-white"><option value="">All Stages</option><option value="On-Stage">On-Stage</option><option value="Off-Stage">Off-Stage</option></select>
                         <select id="filter-gender" onchange="populateEvents()" class="compact-input bg-white"><option value="">Boys/Girls/Both</option><option value="Boys">Boys</option><option value="Girls">Girls</option><option value="Both">Both</option></select>
@@ -299,10 +323,10 @@
             <!-- Judge/direct decisions are the primary content of this tab. -->
             <div id="judge-sheet-table-section">
                 <h3 id="queue-section-title" class="font-bold text-slate-500 text-xs uppercase tracking-wider mb-3 px-1">Submitted Judge Sheets for Publication</h3>
-                <div id="pending-list" class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"></div>
+                <div id="pending-list" class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"></div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div id="entry-workbench" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-4 bg-white">
                     <!-- ENTRY FORM -->
                     <div id="entry-form" class="hidden space-y-4 animate-fade-in">
@@ -399,7 +423,7 @@
         import { buildTeamScoreLedger, createResultRevision, createScoringSnapshot, judgeScoreToResult, normalizeScoringRules, placeKeyAt, scoringConfigForEvent, scoringEnabled as scoringFlags } from './score-utils.js';
         import { normalizeFestSetup } from './fest-config.js';
 
-        let students = [], participants = [], events = [], registrations = [], categories = [], results = [], teams = [], judgeScores = [], judgeAssignments = [], scoringRules = {};
+        let students = [], participants = [], events = [], registrations = [], categories = [], results = [], teams = [], teamDisplayNames = {}, judgeScores = [], judgeAssignments = [], scoringRules = {};
         const publishRequest = new URLSearchParams(window.location.search);
         const requestedEventId = publishRequest.get('event') || '';
         const requestedScoreId = publishRequest.get('score') || '';
@@ -428,6 +452,14 @@
         const participantForId = id => students.find(s=>s.id===id)||participants.find(item=>item.id===id);
         const chestForStudent = (id) => participantForId(id)?.chestNo || '-';
         const groupRegistrationForWinner = (winnerId) => registrations.find(r => r.id === winnerId) || null;
+        const teamDisplayName = (team) => {
+            const value = String(team || '').trim();
+            if(!value) return 'Team';
+            if(Array.isArray(festSetup.teamDisplayNames) && teams.includes(value)) return String(festSetup.teamDisplayNames[teams.indexOf(value)] || value);
+            const configured = teamDisplayNames?.[value] || festSetup.teamDisplayNames?.[value] || festSetup.teamNames?.[value] || festSetup.teamLabels?.[value];
+            return String(configured || value);
+        };
+        const teamBadge = (team) => html(teamDisplayName(team));
         const teamForWinner = (winnerId, type = 'Single') => {
             if(type === 'Group') return groupRegistrationForWinner(winnerId)?.team || winnerId;
             return participantForId(winnerId)?.team || '';
@@ -437,10 +469,10 @@
                 const reg = groupRegistrationForWinner(winnerId);
                 if(!reg) return winnerId || 'Group';
                 const chests = [...(reg.studentIds||[]),...(reg.participantIds||[])].map(chestForStudent).join(', ') || '-';
-                return `${reg.team || 'Team'} • Group ${reg.slotIndex || 1} • Chest: ${chests}`;
+                return `${teamDisplayName(reg.team)} • Group ${reg.slotIndex || 1} • Chest: ${chests}`;
             }
             const student = participantForId(winnerId);
-            return student ? `${student.chestNo?`Chest ${student.chestNo}`:student.name || 'Participant'} (${student.team || student.participantType || ''})` : 'Unknown';
+            return student ? `${student.chestNo?`Chest ${student.chestNo}`:student.name || 'Participant'} (${teamDisplayName(student.team || student.participantType || '')})` : 'Unknown';
         };
         const submittedJudgeScores = () => judgeScores.filter(s => s.status === 'submitted').sort((a,b) => (b.submittedAt || b.updatedAt || 0) - (a.submittedAt || a.updatedAt || 0));
         const assignmentForScore = score => judgeAssignments.find(assignment => assignment.id === score?.assignmentId);
@@ -696,6 +728,20 @@
             if(['judgeSheets','publish'].includes(currentTab)) renderPendingList();
         };
 
+        window.closeResultEntryModal = () => {
+            const modal = document.getElementById('result-entry-modal');
+            const body = document.getElementById('result-entry-modal-body');
+            const form = document.getElementById('entry-form');
+            if(form && body?.contains(form)) document.querySelector('#view-entry .bg-white.rounded-2xl .p-4')?.prepend(form);
+            modal?.classList.add('hidden'); modal?.classList.remove('flex'); document.body.classList.remove('publisher-modal-open');
+        };
+        const showResultEntryModal = () => {
+            const modal = document.getElementById('result-entry-modal'), body = document.getElementById('result-entry-modal-body'), form = document.getElementById('entry-form');
+            if(!modal || !body || !form) return;
+            document.getElementById('result-modal-title').textContent = currentEvent?.name || 'Result Entry';
+            body.appendChild(form); modal.classList.remove('hidden'); modal.classList.add('flex'); document.body.classList.add('publisher-modal-open');
+        };
+
         window.loadEvent = async (forceId = null, forceScoreId = '') => {
             const id = forceId || document.getElementById('filter-event').value;
             if(forceId) document.getElementById('filter-event').value = forceId;
@@ -703,7 +749,6 @@
             const form = document.getElementById('entry-form'); const empty = document.getElementById('entry-empty'); const badge = document.getElementById('existing-badge');
             if(!id) { form.classList.add('hidden'); empty.classList.remove('hidden'); currentEvent = null; return; }
 
-            document.querySelector('.tab-view').scrollIntoView({ behavior: 'smooth' });
             const e = events.find(x => x.id === id); currentEvent = e;
             document.getElementById('lbl-ev-name').innerText = e.name; document.getElementById('lbl-ev-type').innerText = `${e.type} • ${e.category} • ${eventGender(e)} • ${e.stage || 'Off-Stage'}`;
             document.getElementById('lbl-assignment-details').textContent=`${e.scheduleDate||'Date TBD'} • ${e.time||'Time TBD'} • ${e.scheduleStage||'Stage TBD'}`;document.getElementById('scoring-snapshot-label').textContent='Current Admin event rule';
@@ -727,14 +772,14 @@
             else {
                 let parts = []; eventRegs.forEach(r => { [...(r.studentIds||[]),...(r.participantIds||[])].forEach(sid => { const s = students.find(x => x.id === sid)||participants.find(x=>x.id===sid); if(s) parts.push({ ...s, chestNo: s.chestNo || 9999 }); }); });
                 parts.sort((a,b) => (parseInt(a.chestNo)||0) - (parseInt(b.chestNo)||0));
-                options += parts.map(s => `<option value="${s.id}">Chest ${s.chestNo} (${studentGender(s)} • ${s.team})</option>`).join('');
+                options += parts.map(s => `<option value="${s.id}">${html(s.name || 'Participant')} • Chest ${html(s.chestNo)} • ${html(studentGender(s))} • ${teamBadge(s.team)}</option>`).join('');
             }
             participantOptionsHtml = options;
 
             renderAwardSections(e, existing, existing?.scoringSnapshot || createScoringSnapshot(scoringRules,e));
             const sourceId=forceScoreId || (existing?.judgeScoreId && submittedScores.some(score=>score.id===existing.judgeScoreId) ? existing.judgeScoreId : submittedScores.length===1?submittedScores[0].id:'');
             if(sourceId) window.importJudgeScore(sourceId); else {document.getElementById('override-panel')?.classList.toggle('hidden',!directEntryMode());document.getElementById('judge-source-summary')?.classList.add('hidden');window.toggleOverrideMode();}
-            form.classList.remove('hidden'); empty.classList.add('hidden'); lucide.createIcons();
+            form.classList.remove('hidden'); empty.classList.add('hidden'); showResultEntryModal(); lucide.createIcons();
         };
 
         const judgeMarkFor = (participantId) => (currentJudgeScore?.marks || []).find(mark => mark.participantId === participantId) || null;
@@ -871,7 +916,7 @@
                 if(status === 'published') batch.set(doc(collection(db, 'notifications')), { team: 'All', title: 'Result Announced', message: `Results published for ${currentEvent.name}`, eventId: currentEvent.id, timestamp: publishedAt, type: 'success' });
                 await batch.commit();
                 window.showToast(status === 'published' ? 'Result Published!' : 'Saved as Ready');
-                document.getElementById('entry-form').classList.add('hidden'); document.getElementById('entry-empty').classList.remove('hidden'); currentEvent = null; currentJudgeScore = null; importedJudgeScoreVersion = ''; pendingCorrectionReason = '';
+                window.closeResultEntryModal(); document.getElementById('entry-form').classList.add('hidden'); document.getElementById('entry-empty').classList.remove('hidden'); currentEvent = null; currentJudgeScore = null; importedJudgeScoreVersion = ''; pendingCorrectionReason = '';
                 const returnToJudgeSheets=publisherEditMode&&judgeSheetsEnabled();publisherEditMode=false;
                 if(returnToJudgeSheets)window.switchTab('judgeSheets');else {populateEvents(); renderPendingList();}
             } catch(error) { console.error(error); window.showToast('Atomic save failed; no partial result was published', 'error'); }
@@ -882,8 +927,11 @@
             const list=document.getElementById('pending-list'),cat=document.getElementById('filter-cat').value,stage=document.getElementById('filter-stage').value,gender=document.getElementById('filter-gender').value,selectedEvent=document.getElementById('filter-event').value,search=document.getElementById('entry-search').value.trim().toLowerCase();
             const matches=event=>(!cat||event.category===cat)&&(!stage||eventStageType(event)===stage)&&(!gender||eventGender(event)===gender)&&(!selectedEvent||event.id===selectedEvent)&&(!search||event.name.toLowerCase().includes(search));
             const directEvents=events.filter(event=>!hasProcessedResult(event.id)&&matches(event));
-            const rows=directEvents.map(event=>{const workflow=resolvedEventWorkflow(event),submitted=reviewableJudgeScores().filter(score=>score.eventId===event.id).length,workflowBadge=workflow==='judged'?'<span class="rounded bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">Judge / Direct</span>':'<span class="rounded bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Direct Entry</span>';return`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name)}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</td><td class="px-4 py-3">${workflowBadge}<span class="ml-1 rounded bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">${html(event.resultMethod||'manual')}</span>${submitted?`<span class="ml-1 rounded bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">${submitted} judge sheet(s)</span>`:''}</td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Enter / Publish</button></td></tr>`}).join('');
-            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} event(s) awaiting publisher result entry — judge sheet is optional here</p></div><table class="w-full min-w-[820px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow / Method</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No events are waiting for direct publishing.</div>':''}`;
+            const eventMeta=event=>`${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}`;
+            const badgeFor=event=>{const workflow=resolvedEventWorkflow(event),submitted=reviewableJudgeScores().filter(score=>score.eventId===event.id).length;return `${workflow==='judged'?'<span class="rounded bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">Judge / Direct</span>':'<span class="rounded bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Direct Entry</span>'}<span class="ml-1 rounded bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">${html(event.resultMethod||'manual')}</span>${submitted?`<span class="ml-1 rounded bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">${submitted} judge sheet(s)</span>`:''}`;};
+            const rows=directEvents.map(event=>`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name)}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${eventMeta(event)}</td><td class="px-4 py-3">${badgeFor(event)}</td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</button></td></tr>`).join('');
+            const cards=directEvents.map(event=>`<button onclick="loadEvent('${html(event.id)}')" class="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"><div class="flex items-start justify-between gap-2"><h4 class="text-sm font-black text-slate-900">${html(event.name)}</h4><span class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</span></div><p class="mt-1 text-[10px] font-bold uppercase text-slate-500">${eventMeta(event)}</p><div class="mt-2 flex flex-wrap gap-1">${badgeFor(event)}</div></button>`).join('');
+            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} event(s) awaiting publisher result entry — judge sheet is optional here</p></div><table class="publish-queue-table w-full min-w-[820px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow / Method</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table><div class="publish-queue-cards gap-2 p-2">${cards}</div>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No events are waiting for direct publishing.</div>':''}`;
             window.lucide?.createIcons();
         };
 
@@ -920,7 +968,7 @@
                 return (!cat || event.category === cat) && (!stage || eventStageType(event) === stage) && (!gender || eventGender(event) === gender) && (!judge || score.judgeId === judge || score.judgeName === judge) && (!selectedEvent || score.eventId === selectedEvent) && (!search || `${event.name || ''} ${score.judgeName || ''}`.toLowerCase().includes(search));
             });
             if(sheets.length === 0) { list.innerHTML = `<div class="py-8 text-center text-xs italic text-slate-400">No submitted judge sheets waiting for publication</div>`; return; }
-            const rows=sheets.map(score => {
+            const rendered=sheets.map(score => {
                 const event = events.find(e => e.id === score.eventId) || {};
                 const archived = results.some(r => r.eventId === score.eventId && r.status === 'archived'),assignment=assignmentForScore(score),issue=judgeSheetIssue(score);
                 const marks = Array.isArray(score.marks) ? score.marks : [];
@@ -931,9 +979,13 @@
                 const total=(outcome.places||[]).reduce((sum,place)=>sum+Number(place.earnedValue??place.value??0)*(place.winners||[]).length,0)+(outcome.gradeAwards||[]).reduce((sum,grade)=>sum+Number(grade.value||0)*(grade.winners||[]).length,0);
                 const editAllowed=canOverrideJudgeSheet();
                 const actions=issue?'<span class="text-[9px] font-black text-red-600">Fix in Admin</span>':`<div class="flex justify-end gap-1"><button onclick="processJudgeSheet('${html(score.id)}','published')" class="rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-black text-white">Publish</button><button onclick="processJudgeSheet('${html(score.id)}','ready')" class="rounded-lg bg-violet-600 px-2.5 py-2 text-[10px] font-black text-white">Confirm</button><button onclick="editJudgeSheet('${html(score.id)}')" ${editAllowed?'':'disabled'} title="${editAllowed?'Edit using an approved manual override':'Disabled by Admin Competition Policy'}" class="rounded-lg border px-2.5 py-2 text-[10px] font-black ${editAllowed?'border-indigo-200 bg-indigo-50 text-indigo-700':'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'}">Edit</button></div>`;
-                return `<tr class="border-t border-slate-100 align-top ${issue?'bg-red-50/50':'hover:bg-indigo-50/30'}"><td class="whitespace-nowrap px-4 py-3"><b class="block text-xs text-slate-800">${html(assignment?.date||event.scheduleDate||'Date TBD')}</b><span class="text-[10px] font-bold text-indigo-600">${html(assignment?.time||event.time||'Time TBD')}</span></td><td class="min-w-56 px-4 py-3"><b class="block text-xs text-slate-900">${html(event.name||score.eventName||'')}</b><span class="text-[9px] font-bold uppercase text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</span></td><td class="min-w-40 px-4 py-3"><b class="block text-xs ${issue?'text-red-700':'text-slate-800'}">${html(score.judgeName||'Judge')}</b><span class="text-[9px] font-bold text-slate-400">Assigned: ${html(assignment?.judgeName||'—')}</span></td><td class="min-w-56 px-4 py-3 text-[10px] font-bold">${positions}</td><td class="min-w-56 px-4 py-3 text-[10px] font-bold">${grades}</td><td class="px-4 py-3 text-center"><b class="block text-sm text-slate-800">${marks.length}</b><span class="text-[9px] font-bold text-slate-400">entries</span><b class="mt-1 block text-xs text-indigo-700">${total} pts</b></td><td class="px-4 py-3"><span class="whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-black uppercase ${statusClass}">${html(status)}</span></td><td class="px-4 py-3 text-right">${actions}</td></tr>`;
-            }).join('');
-            list.innerHTML=`<table class="w-full min-w-[960px] text-left"><thead class="bg-slate-50 text-[9px] font-black uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Date & Time</th><th class="px-4 py-3">Event</th><th class="px-4 py-3">Source Judge</th><th class="px-4 py-3">Positions & Winners</th><th class="px-4 py-3">Grades & Winners</th><th class="px-4 py-3 text-center">Entries / Total</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table>`;
+                const rowHtml = `<tr class="border-t border-slate-100 align-top ${issue?'bg-red-50/50':'hover:bg-indigo-50/30'}"><td class="whitespace-nowrap px-4 py-3"><b class="block text-xs text-slate-800">${html(assignment?.date||event.scheduleDate||'Date TBD')}</b><span class="text-[10px] font-bold text-indigo-600">${html(assignment?.time||event.time||'Time TBD')}</span></td><td class="min-w-56 px-4 py-3"><b class="block text-xs text-slate-900">${html(event.name||score.eventName||'')}</b><span class="text-[9px] font-bold uppercase text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</span></td><td class="min-w-40 px-4 py-3"><b class="block text-xs ${issue?'text-red-700':'text-slate-800'}">${html(score.judgeName||'Judge')}</b><span class="text-[9px] font-bold text-slate-400">Assigned: ${html(assignment?.judgeName||'—')}</span></td><td class="min-w-56 px-4 py-3 text-[10px] font-bold">${positions}</td><td class="min-w-56 px-4 py-3 text-[10px] font-bold">${grades}</td><td class="px-4 py-3 text-center"><b class="block text-sm text-slate-800">${marks.length}</b><span class="text-[9px] font-bold text-slate-400">entries</span><b class="mt-1 block text-xs text-indigo-700">${total} pts</b></td><td class="px-4 py-3"><span class="whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-black uppercase ${statusClass}">${html(status)}</span></td><td class="px-4 py-3 text-right">${actions}</td></tr>`;
+                const cardHtml = `<div class="rounded-xl border ${issue?'border-red-100 bg-red-50/60':'border-slate-200 bg-white'} p-3 shadow-sm"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><h4 class="text-sm font-black text-slate-900">${html(event.name||score.eventName||'')}</h4><p class="mt-1 text-[10px] font-bold uppercase text-slate-500">${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}</p></div><span class="whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-black uppercase ${statusClass}">${html(status)}</span></div><div class="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold"><div class="rounded-lg bg-slate-50 p-2"><b class="block text-slate-400 uppercase">Date / Time</b>${html(assignment?.date||event.scheduleDate||'Date TBD')}<br><span class="text-indigo-600">${html(assignment?.time||event.time||'Time TBD')}</span></div><div class="rounded-lg bg-slate-50 p-2"><b class="block text-slate-400 uppercase">Judge</b>${html(score.judgeName||'Judge')}<br><span class="text-slate-400">Assigned: ${html(assignment?.judgeName||'—')}</span></div></div><div class="mt-2 grid gap-2 text-[10px] font-bold"><div>${positions}</div><div>${grades}</div></div><div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-2"><span class="text-[10px] font-black text-indigo-700">${marks.length} entries • ${total} pts</span>${actions}</div></div>`;
+                return { rowHtml, cardHtml };
+            });
+            const rows = rendered.map(item => item.rowHtml).join('');
+            const cards = rendered.map(item => item.cardHtml).join('');
+            list.innerHTML=`<table class="judge-sheet-table w-full min-w-[960px] text-left"><thead class="bg-slate-50 text-[9px] font-black uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Date & Time</th><th class="px-4 py-3">Event</th><th class="px-4 py-3">Source Judge</th><th class="px-4 py-3">Positions & Winners</th><th class="px-4 py-3">Grades & Winners</th><th class="px-4 py-3 text-center">Entries / Total</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table><div class="judge-sheet-cards gap-2 p-2">${cards}</div>`;
             lucide.createIcons();
         };
 
@@ -970,7 +1022,7 @@
             calculatePoints(pubResults, scores);
             const sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
             const ticker = document.getElementById('team-points-ticker');
-            ticker.innerHTML = sorted.map((t, i) => `<div class="inline-flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm mx-1"><span class="text-[10px] font-bold ${i===0?'text-green-600':'text-blue-600'}">#${i+1}</span><span class="text-[10px] font-bold text-slate-700">${t[0]}</span><span class="text-[10px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm border border-slate-100">${t[1]}</span></div>`).join('');
+            ticker.innerHTML = sorted.map((t, i) => `<div class="inline-flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm mx-1"><span class="text-[10px] font-bold ${i===0?'text-green-600':'text-blue-600'}">#${i+1}</span><span class="text-[10px] font-bold text-slate-700">${teamBadge(t[0])}</span><span class="text-[10px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm border border-slate-100">${t[1]}</span></div>`).join('');
         };
 
         window.toggleAllReadySelections = (checked) => {
@@ -1041,7 +1093,7 @@
             if(expandedCount) expandedCount.textContent = `${selectedReadyResults.length} Selected`;
             tbody.innerHTML = rows.map((row, i) => {
                 const diffHtml = row.adding > 0 ? `<span class="inline-flex items-center justify-center gap-0.5 rounded bg-green-50 px-1 py-0.5 text-[10px] font-black text-green-700"><i data-lucide="plus" class="h-2.5 w-2.5"></i>${row.adding}</span>` : '<span class="text-slate-300">0</span>';
-                return `<tr class="border-b border-slate-50 hover:bg-slate-50"><td class="px-2 py-1 font-bold text-slate-800"><span class="mr-1 text-slate-400 text-[8px]">#${i+1}</span>${html(row.team)}</td><td class="px-1.5 py-1 text-center font-bold text-slate-500">${row.current}</td><td class="px-1.5 py-1 text-center">${diffHtml}</td><td class="px-2 py-1 text-right text-[11px] font-black text-slate-900">${row.total}</td></tr>`;
+                return `<tr class="border-b border-slate-50 hover:bg-slate-50"><td class="px-2 py-1 font-bold text-slate-800"><span class="mr-1 text-slate-400 text-[8px]">#${i+1}</span>${teamBadge(row.team)}</td><td class="px-1.5 py-1 text-center font-bold text-slate-500">${row.current}</td><td class="px-1.5 py-1 text-center">${diffHtml}</td><td class="px-2 py-1 text-right text-[11px] font-black text-slate-900">${row.total}</td></tr>`;
             }).join('');
             lucide.createIcons(); window.expandSimPanel(rows.length);
         };
@@ -1177,7 +1229,7 @@
                     document.getElementById('loader-screen').style.display = 'none';
                 }
 
-                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
+                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
                 onSnapshot(doc(db, "settings", "scoring_rules"), d => { scoringRules = d.exists() ? d.data() : {}; if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
                 onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
                 onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
