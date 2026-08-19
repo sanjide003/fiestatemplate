@@ -41,4 +41,4 @@ enableIndexedDbPersistence(db)
   });
 
 // Export services so other files can use them
-export { app, auth, db, storage };
+export { app, auth, db, storage, firebaseConfig };

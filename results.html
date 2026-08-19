@@ -469,6 +469,7 @@
 
     <script type="module">
         import { db, auth } from './firebase-config.js';
+        import { fetchPublicCollectionFields } from './public-data-utils.js';
         import { collection, onSnapshot, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { eventContributesToTeamScore, normalizeFestSetup, readableTextColor, teamColor } from './fest-config.js';
@@ -728,7 +729,7 @@
             teams.forEach(t => { teamScores[t] = 0; teamCounts[t] = {1:0, 2:0, 3:0}; });
             students.forEach(s => { studentScores[s.id] = { ...s, score: 0 }; });
             const studentForWinner = winner => studentMap[winner] || participants.find(item=>item.id===winner) || students.find(student => String(student.chestNo || '') === String(winner || '')) || students.find(student => String(student.name || '').trim().toLowerCase() === String(winner || '').trim().toLowerCase());
-            const personAvatar = (person, size='h-8 w-8') => person?.photoData || person?.photo ? `<img src="${person.photoData || person.photo}" class="${size} shrink-0 rounded-full border border-white bg-slate-100 object-cover shadow-sm" alt="">` : `<span class="${size} grid shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">${String(person?.name || person?.participantName || '?').charAt(0).toUpperCase()}</span>`;
+            const personAvatar = (person, size='h-8 w-8') => `<span class="${size} grid shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">${String(person?.name || person?.participantName || '?').charAt(0).toUpperCase()}</span>`;
             window.studentForResultWinner = studentForWinner;
 
             visiblePublishedResults().forEach(r => {
@@ -1402,7 +1403,7 @@
         window.setTalentAudience=value=>{currentTalentAudience=value;currentTalentGender='all';talentExpandedGroups.clear();renderTalentAudienceSelector();renderTalent();};
         window.setTalentGender=value=>{currentTalentGender=value;talentExpandedGroups.clear();renderTalent();};
         window.toggleTalentGroup=encoded=>{const key=decodeURIComponent(encoded);talentExpandedGroups.has(key)?talentExpandedGroups.delete(key):talentExpandedGroups.add(key);renderTalent();};
-        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=winnerProfile(id);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',className:personClass(person),gender:studentGender(person),category:event.category||result.category||'General',eventName:event.name||result.eventName||result.eventId,awardLabel:award.label,photoData:person.photoData||person.photo||'',audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
+        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=winnerProfile(id);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',className:personClass(person),gender:studentGender(person),category:event.category||result.category||'General',eventName:event.name||result.eventName||result.eventId,awardLabel:award.label,audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
         const renderTalent = () => {
             const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=Math.max(1,Math.min(50,Number(cfg.topCount||3))),fields=cfg.cardFields||{},audienceCfg=cfg.audiences?.[currentTalentAudience]||{},allRows=talentPerformanceRows(),genders=[...new Set(allRows.map(row=>row.gender).filter(Boolean))],rows=currentTalentGender==='all'?allRows:allRows.filter(row=>row.gender===currentTalentGender),groups=new Map();
             if(audienceCfg.enabled===false){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white py-12 text-center text-slate-400">Top Talent is disabled for this audience.</div>';return;}
@@ -1546,8 +1547,17 @@
                         processData();
                     }
                 });
-                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
-                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
+                const refreshPublicPeople = async () => {
+                    try {
+                        [students, participants] = await Promise.all([
+                            fetchPublicCollectionFields('students', ['name','team','category','gender','chestNo','details']),
+                            /* replaces heavy collection(db, "participants") listener */ fetchPublicCollectionFields('participants', ['name','fullName','participantName','team','category','gender','participantType','sourceType','chestNo','details'])
+                        ]);
+                        processData();
+                    } catch(error) { console.warn('Public people summary unavailable.', error); }
+                };
+                refreshPublicPeople();
+                window.setInterval(refreshPublicPeople, 30000);
                 onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
                 onSnapshot(query(collection(db, "results"), where("status", "==", "published")), s => { results = s.docs.map(d=>({eventId:d.id, ...d.data()})); processData(); });
                 onSnapshot(query(collection(db, "posterCertificateModels"),where('status','==','published'),where('downloadAccess.publicResults','==',true)), s => { templates = s.docs.map(d=>({id:d.id,...d.data()})); renderResults(); },error=>console.warn('Public poster and certificate models unavailable',error));
