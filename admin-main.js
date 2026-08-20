@@ -245,7 +245,8 @@ const adminInputActions = {
     'save-category-display-name': (target) => window.saveCategoryDisplayName(target.dataset.category),
     'apply-master-preset': (target) => window.applyMasterPreset(target.value),
     'apply-scoring-policy-pack': (target) => window.applyScoringPolicyPack(target.value),
-    'open-native-picker': (target) => openNativePicker(target)
+    'open-native-picker': (target) => openNativePicker(target),
+    'switch-public-content-panel': (target) => window.switchPublicContentPanel(target.dataset.panel || target.value)
 };
 
 const routeAdminInputAction = (event, attr) => {
@@ -1224,6 +1225,15 @@ const uniqueMediaSources = (...groups) => {
     return rows;
 };
 
+
+const PUBLIC_CONTENT_PANELS = new Set(['home','next','results','team','social']);
+let activePublicContentPanel = 'home';
+window.switchPublicContentPanel = panel => {
+    activePublicContentPanel = PUBLIC_CONTENT_PANELS.has(panel) ? panel : 'home';
+    document.querySelectorAll('[data-public-content-panel]').forEach(section => section.classList.toggle('hidden', section.dataset.publicContentPanel !== activePublicContentPanel));
+    document.querySelectorAll('input[name="public-content-panel"]').forEach(input => { input.checked = input.value === activePublicContentPanel; });
+};
+
 window.renderPublicContentForm = () => {
     setPublicField('public-home-name1', homeConfig.festName1 || '');
     setPublicField('public-home-name2', homeConfig.festName2 || '');
@@ -1263,6 +1273,7 @@ window.renderPublicContentForm = () => {
     setPublicField('public-schedule-next-image-interval', String(nextProgramCard.imageIntervalSeconds || 2));
     setPublicField('public-schedule-next-bg-video', nextProgramCard.backgroundVideoUrl || '');
     ['wa','ig','fb','yt','tg'].forEach(k => setPublicField(`public-social-${k}`, social[k] || ''));
+    window.switchPublicContentPanel(activePublicContentPanel);
 
     const tvShow = tvConfig.show || {};
     const tvBackground = tvConfig.background || {};
