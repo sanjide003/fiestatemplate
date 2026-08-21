@@ -538,7 +538,7 @@
         }
 
         const resultsView=()=>festSetup.publicView?.resultsPage||{};
-        let currentAudience='',currentTalentAudience='',currentTalentGender='all',talentExpandedGroups=new Set(),initialPublicTabApplied=false;
+        let currentAudience='',currentTalentAudience='',currentTalentGender='all',talentExpandedGroups=new Set(),initialPublicTabApplied=false,resultFeedError='',lastResultsUpdatedAt=0,lastPublishedResultAt=0;
         let teamTimelineResizeTimer;window.addEventListener('resize',()=>{clearTimeout(teamTimelineResizeTimer);teamTimelineResizeTimer=setTimeout(()=>{if(window.currentTab==='team')renderTeams(false);},160);},{passive:true});
         const personType=id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);return studentMap[id]||person?.sourceType==='student_directory'?'student':person?.participantType||'student';};
         const resultWinnerIds=result=>Array.isArray(result.places)&&result.places.length?result.places.flatMap(place=>place.winners||[]):[result.winners?.first,result.winners?.second,result.winners?.third].flat().filter(Boolean);
@@ -550,7 +550,8 @@
         function renderAudienceFilters(){const box=document.getElementById('audience-nav-items'),cfg=resultsView().audiences||{},defs=festSetup.participantTypeDefinitions||[];if(!box)return;const fallback=defaultResultAudience(),keys=resultAudienceKeys().filter(key=>key!==fallback),visible=cfg.showAll!==false?[...keys,'all']:keys;box.innerHTML=visible.map(key=>{const label=key==='all'?'All':defs.find(item=>item.key===key)?.label||key;return `<button type="button" onclick="setResultAudience('${key}')" class="nav-item flex-col gap-0.5 ${window.currentTab==='result'&&currentAudience===key?'active':''}" aria-label="${label} results" title="${label} Results"><i data-lucide="${key==='all'?'users':key==='student'?'graduation-cap':key==='parent'?'heart-handshake':key==='staff'?'badge-check':'user'}" class="h-4 w-4"></i><span class="audience-nav-label">${label}</span></button>`;}).join('');document.getElementById('nav-result')?.classList.toggle('active',window.currentTab==='result'&&currentAudience===fallback);window.lucide?.createIcons?.();}
         window.openDefaultResults=()=>{currentAudience=defaultResultAudience();window.switchTab('result');};
         window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
-        function applyResultsViewConfig(){const cfg=resultsView(),tabs=cfg.tabs||{};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();}
+        function renderPublicResultStatus(){const container=document.getElementById('results-container');if(!container)return;let status=document.getElementById('public-result-status');if(!status){status=document.createElement('div');status.id='public-result-status';status.className='mx-4 mb-3 rounded-2xl border px-4 py-3 text-xs font-black md:mx-6';container.before(status);}const tabs=resultsView().tabs||{},hidden=tabs.result===false;if(resultFeedError){status.className='mx-4 mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 md:mx-6';status.textContent=`Published results could not be loaded: ${resultFeedError}`;status.classList.remove('hidden');return;}if(hidden){status.className='mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 md:mx-6';status.textContent='Results tab is disabled by Admin Public View settings.';status.classList.remove('hidden');return;}if(lastResultsUpdatedAt){status.className='mx-4 mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-800 md:mx-6';status.textContent=`Live results updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;status.classList.remove('hidden');return;}status.classList.add('hidden');}
+        function applyResultsViewConfig(){const cfg=resultsView(),tabs=cfg.tabs||{};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();renderPublicResultStatus();}
 
         // --- SEARCH OPTIMIZATION (DEBOUNCE) ---
         const handleSearchInput = debounce((e) => {
@@ -815,14 +816,19 @@
 
         window.renderResults = () => {
             const container = document.getElementById('results-container');
+            if(!container) return;
+            renderPublicResultStatus();
+            const tabs = resultsView().tabs || {};
+            if(tabs.result === false) { container.innerHTML = `<div class="col-span-full text-center py-12 text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl text-sm font-black">Results tab is disabled by Admin Public View settings.</div>`; return; }
+            if(resultFeedError) { container.innerHTML = `<div class="col-span-full text-center py-12 text-red-700 bg-red-50 border border-red-200 rounded-2xl text-sm font-black">Published results could not be loaded. Please refresh or contact the admin.</div>`; return; }
             const cat = window.currentCat;
-            const search = document.getElementById('global-search-input').value.toLowerCase();
+            const search = (document.getElementById('global-search-input')?.value || '').toLowerCase();
 
             let filtered = results.filter(r => {
                 if (r.status && r.status !== 'published') return false; if(resultEventCancelled(r))return false; if(!resultMatchesAudience(r))return false;
                 // FAST LOOKUP
                 const e = eventMap[r.eventId];
-                const name = (e ? e.name : r.eventName).toLowerCase();
+                const name = String(e ? e.name : r.eventName || '').toLowerCase();
                 const c = e ? e.category : r.category;
 
                 // Enhanced Search Logic
@@ -858,11 +864,13 @@
                 }
 
                 return (!cat || c === cat) && match;
-            }).sort((a,b) => b.timestamp - a.timestamp);
+            }).sort((a,b) => Number(b.publishedAt?.toMillis?.()||b.publishedAt||b.timestamp?.toMillis?.()||b.timestamp||0) - Number(a.publishedAt?.toMillis?.()||a.publishedAt||a.timestamp?.toMillis?.()||a.timestamp||0));
 
             if(filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-12 text-slate-400 italic text-sm flex flex-col items-center gap-2">
-                    <i data-lucide="search-x" class="w-8 h-8 opacity-50"></i>No results found
+                const publishedCount=visiblePublishedResults().length,audienceCount=visiblePublishedResults().filter(r=>resultMatchesAudience(r)).length;
+                const emptyText=!publishedCount?'No published results yet':search?'No results match this search':cat&&!audienceCount?'No results for this participant filter':cat?`No published results in ${cat}`:audienceCount?'No results found':'No results for this participant filter';
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 italic text-sm flex flex-col items-center gap-2">
+                    <i data-lucide="search-x" class="w-8 h-8 opacity-50"></i>${emptyText}${currentAudience!=='all'&&(resultsView().audiences?.showAll!==false)?'<button onclick="setResultAudience(\'all\')" class="mt-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-black text-white not-italic">Show all results</button>':''}
                 </div>`;
                 lucide.createIcons();
                 return;
@@ -1554,7 +1562,7 @@
                 onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
                 onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
                 onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
-                onSnapshot(query(collection(db, "results"), where("status", "==", "published")), s => { results = s.docs.map(d=>({eventId:d.id, ...d.data()})); processData(); });
+                onSnapshot(query(collection(db, "results"), where("status", "==", "published")), s => { const incoming=s.docs.map(d=>({eventId:d.id, ...d.data()})); const newest=Math.max(0,...incoming.map(item=>Number(item.publishedAt?.toMillis?.()||item.publishedAt||item.timestamp?.toMillis?.()||item.timestamp||0))); const hadResults=results.length>0; results=incoming.sort((a,b)=>Number(b.publishedAt?.toMillis?.()||b.publishedAt||b.timestamp?.toMillis?.()||b.timestamp||0)-Number(a.publishedAt?.toMillis?.()||a.publishedAt||a.timestamp?.toMillis?.()||a.timestamp||0)); resultFeedError=''; lastResultsUpdatedAt=Date.now(); if(hadResults&&newest>lastPublishedResultAt&&typeof showToast==='function')showToast('New published result is live'); lastPublishedResultAt=Math.max(lastPublishedResultAt,newest); renderPublicResultStatus(); processData(); }, error => { console.error('Published results listener failed', error); resultFeedError=error?.message||'Firestore listener failed'; renderPublicResultStatus(); renderResults(); });
                 onSnapshot(query(collection(db, "posterCertificateModels"),where('status','==','published'),where('downloadAccess.publicResults','==',true)), s => { templates = s.docs.map(d=>({id:d.id,...d.data()})); renderResults(); },error=>console.warn('Public poster and certificate models unavailable',error));
                 onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
         };

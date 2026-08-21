@@ -931,6 +931,7 @@
                 batch.set(doc(collection(db, 'auditLogs')), { type: 'result-publication', action: status, resultId: currentEvent.id, eventId: currentEvent.id, judgeScoreId: currentJudgeScore?.id || '', actorUid: currentPublisher.uid, overrideReason: (overrideEnabled || pendingCorrectionReason) ? effectiveOverrideReason : '', original: latestScore ? judgeScoreToResult(latestScore, currentEvent, rulesForJudgeSnapshot(latestScore,currentEvent)) : null, result: data, timestamp: publishedAt });
                 if(status === 'published') batch.set(doc(collection(db, 'notifications')), { team: 'All', title: 'Result Announced', message: `Results published for ${currentEvent.name}`, eventId: currentEvent.id, timestamp: publishedAt, type: 'success' });
                 await batch.commit();
+                if(status === 'published') { const verifySnap = await getDoc(doc(db, 'results', currentEvent.id)); if(!verifySnap.exists() || verifySnap.data().status !== 'published') window.showToast('Published, but public verification failed. Reopen this result if it does not appear publicly.', 'error'); }
                 window.showToast(status === 'published' ? 'Result Published!' : 'Saved as Ready');
                 window.closeResultEntryModal(); document.getElementById('entry-form').classList.add('hidden'); document.getElementById('entry-empty').classList.remove('hidden'); currentEvent = null; currentJudgeScore = null; importedJudgeScoreVersion = ''; pendingCorrectionReason = '';
                 const returnToJudgeSheets=publisherEditMode&&judgeSheetsEnabled();publisherEditMode=false;
@@ -1129,7 +1130,7 @@
                     batch.set(doc(collection(db, 'notifications')), { team: 'All', title: 'Result Announced', message: `Results published for ${result.eventName}`, eventId: id, timestamp: publishedAt, type: 'success' });
                     batch.set(doc(collection(db, 'auditLogs')), { type: 'result-publication', action: 'bulk-published', resultId: id, eventId: id, judgeScoreId: result.judgeScoreId || '', actorUid: currentPublisher.uid, timestamp: publishedAt });
                 });
-                await batch.commit(); window.closeSimModal(); window.showToast(`${selectedIds.length} Results Published!`);
+                await batch.commit(); const verifySnaps = await Promise.all(selectedIds.map(id => getDoc(doc(db, 'results', id)))); const failed = verifySnaps.filter(snap => !snap.exists() || snap.data().status !== 'published').length; if(failed) window.showToast(`${failed} published result(s) need verification before they appear publicly`, 'error'); window.closeSimModal(); window.showToast(`${selectedIds.length} Results Published!`);
             } catch(error) { console.error(error); window.showToast('Bulk publish failed atomically; no partial batch was applied', 'error'); }
             finally { document.getElementById('app-loader').classList.add('hide'); }
         };
