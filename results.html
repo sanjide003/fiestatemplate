@@ -397,10 +397,9 @@
     <div class="bottom-nav-container">
         <nav class="bottom-nav" id="bottom-nav-bar">
             <a href="index.html" class="nav-item" id="nav-home"><i data-lucide="layout-grid"></i></a>
-            <div onclick="openDefaultResults()" class="nav-item active" id="nav-result"><i data-lucide="list-checks"></i></div>
-            <div id="audience-nav-items" class="contents"></div>
-            <div onclick="switchTab('team')" class="nav-item" id="nav-team"><i data-lucide="trophy"></i></div>
-            <div onclick="switchTab('talent')" class="nav-item" id="nav-talent"><i data-lucide="sparkles"></i></div>
+            <div onclick="openDefaultResults()" class="nav-item active" id="nav-result" title="All Results" aria-label="All Results"><i data-lucide="list-checks"></i><span class="audience-nav-label">All</span></div>
+            <!-- Retained as an inert compatibility hook; participant result tabs are intentionally removed. -->
+            <div id="audience-nav-items" class="hidden" aria-hidden="true"></div>
         </nav>
     </div>
 
@@ -476,6 +475,7 @@
         import { normalizePosterCertificateModel as normalizeTemplate, renderPosterCertificate as renderTemplate, modelDimensions as templateDimensions, templateAvailableOn } from './poster-certificate-engine.js';
 
         let students = [], participants = [], registrations = [], events = [], results = [], templates = [], teams = [], categories = [], teamDisplayNames = {}, categoryDisplayNames = {}, teamColors = {}, scoringRules = {};
+        const html=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
         const teamLabel=value=>String(teamDisplayNames?.[value]||value||'');
         const categoryLabel=value=>value==='General'?'General':String(categoryDisplayNames?.[value]||value||'');
         const eligibleTemplates=(result,event,position)=>templates.filter(raw=>{const t=normalizeTemplate(raw),a=t.appliesTo;return templateAvailableOn(t,'publicResults')&&(!a.positions.length||a.positions.includes(position))&&(!a.eventIds.length||a.eventIds.includes(result.eventId))&&(!a.categories.length||a.categories.includes(event?.category||result.category));});
@@ -544,14 +544,14 @@
         const resultWinnerIds=result=>Array.isArray(result.places)&&result.places.length?result.places.flatMap(place=>place.winners||[]):[result.winners?.first,result.winners?.second,result.winners?.third].flat().filter(Boolean);
         const resultEventCancelled=result=>eventMap[result.eventId]?.cancelled===true||result.cancelled===true;
         const visiblePublishedResults=()=>results.filter(result=>(!result.status||result.status==='published')&&!resultEventCancelled(result));
-        const resultMatchesAudience=result=>currentAudience==='all'||resultWinnerIds(result).some(id=>personType(id)===currentAudience);
-        function resultAudienceKeys(){const cfg=resultsView().audiences||{};return (cfg.enabled||[]).filter(key=>festSetup.participantTypes.includes(key));}
-        function defaultResultAudience(){const cfg=resultsView().audiences||{},keys=resultAudienceKeys();return keys.includes(cfg.default)?cfg.default:(keys[0]||(cfg.showAll!==false?'all':''));}
-        function renderAudienceFilters(){const box=document.getElementById('audience-nav-items'),cfg=resultsView().audiences||{},defs=festSetup.participantTypeDefinitions||[];if(!box)return;const fallback=defaultResultAudience(),keys=resultAudienceKeys().filter(key=>key!==fallback),visible=cfg.showAll!==false?[...keys,'all']:keys;box.innerHTML=visible.map(key=>{const label=key==='all'?'All':defs.find(item=>item.key===key)?.label||key;return `<button type="button" onclick="setResultAudience('${key}')" class="nav-item flex-col gap-0.5 ${window.currentTab==='result'&&currentAudience===key?'active':''}" aria-label="${label} results" title="${label} Results"><i data-lucide="${key==='all'?'users':key==='student'?'graduation-cap':key==='parent'?'heart-handshake':key==='staff'?'badge-check':'user'}" class="h-4 w-4"></i><span class="audience-nav-label">${label}</span></button>`;}).join('');document.getElementById('nav-result')?.classList.toggle('active',window.currentTab==='result'&&currentAudience===fallback);window.lucide?.createIcons?.();}
-        window.openDefaultResults=()=>{currentAudience=defaultResultAudience();window.switchTab('result');};
-        window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
-        function renderPublicResultStatus(){const container=document.getElementById('results-container');if(!container)return;let status=document.getElementById('public-result-status');if(!status){status=document.createElement('div');status.id='public-result-status';status.className='mx-4 mb-3 rounded-2xl border px-4 py-3 text-xs font-black md:mx-6';container.before(status);}const tabs=resultsView().tabs||{},hidden=tabs.result===false;if(resultFeedError){status.className='mx-4 mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 md:mx-6';status.textContent=`Published results could not be loaded: ${resultFeedError}`;status.classList.remove('hidden');return;}if(hidden){status.className='mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 md:mx-6';status.textContent='Results tab is disabled by Admin Public View settings.';status.classList.remove('hidden');return;}if(lastResultsUpdatedAt){status.className='mx-4 mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-800 md:mx-6';status.textContent=`Live results updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;status.classList.remove('hidden');return;}status.classList.add('hidden');}
-        function applyResultsViewConfig(){const cfg=resultsView(),tabs=cfg.tabs||{};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();renderPublicResultStatus();}
+        const resultMatchesAudience=()=>true;
+        function resultAudienceKeys(){return [];}
+        function defaultResultAudience(){return 'all';}
+        function renderAudienceFilters(){document.getElementById('nav-result')?.classList.add('active');}
+        window.openDefaultResults=()=>{currentAudience='all';window.switchTab('result');};
+        window.setResultAudience=()=>{currentAudience='all';window.switchTab('result');renderCategoryButtons();renderResults();};
+        function renderPublicResultStatus(){const container=document.getElementById('results-container');if(!container)return;let status=document.getElementById('public-result-status');if(!status){status=document.createElement('div');status.id='public-result-status';status.className='mx-4 mb-3 rounded-2xl border px-4 py-3 text-xs font-black md:mx-6';container.before(status);}if(resultFeedError){status.className='mx-4 mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 md:mx-6';status.textContent=`Published results could not be loaded: ${resultFeedError}`;status.classList.remove('hidden');return;}if(lastResultsUpdatedAt){status.className='mx-4 mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-800 md:mx-6';status.textContent=`Live results updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;status.classList.remove('hidden');return;}status.classList.add('hidden');}
+        function applyResultsViewConfig(){document.getElementById('nav-team')?.classList.add('hidden');document.getElementById('nav-talent')?.classList.add('hidden');document.getElementById('tab-team')?.classList.add('public-tab-disabled');document.getElementById('tab-talent')?.classList.add('public-tab-disabled');document.getElementById('result-filter-header')?.classList.remove('hidden');const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';window.currentTab='result';currentAudience='all';renderAudienceFilters();renderPublicResultStatus();}
 
         // --- SEARCH OPTIMIZATION (DEBOUNCE) ---
         const handleSearchInput = debounce((e) => {
@@ -801,7 +801,8 @@
         window.renderCategoryButtons = () => {
             const container = document.getElementById('cat-filters');
             if(!container) return;
-            const cfg=resultsView().resultsTab||{},available=cfg.hideEmpty?[...new Set(visiblePublishedResults().filter(result=>resultMatchesAudience(result)).map(result=>eventMap[result.eventId]?.category||result.category))]:categories,allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c!=='General')];
+            const cfg=resultsView().resultsTab||{},publishedCategories=visiblePublishedResults().map(result=>eventMap[result.eventId]?.category||result.category).filter(Boolean),configuredCategories=[...categories,...events.map(event=>event.category).filter(Boolean),...publishedCategories],available=cfg.hideEmpty?[...new Set(publishedCategories)]:[...new Set(configuredCategories)],allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c&&c!=='General')];
+            if(window.currentCat&&!allCats.includes(window.currentCat))window.currentCat='';
             container.innerHTML = allCats.map(c => {
                 const isActive = (window.currentCat === '' && c === 'All') || (window.currentCat === c);
                 const filterVal = c === 'All' ? '' : c;
@@ -818,8 +819,6 @@
             const container = document.getElementById('results-container');
             if(!container) return;
             renderPublicResultStatus();
-            const tabs = resultsView().tabs || {};
-            if(tabs.result === false) { container.innerHTML = `<div class="col-span-full text-center py-12 text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl text-sm font-black">Results tab is disabled by Admin Public View settings.</div>`; return; }
             if(resultFeedError) { container.innerHTML = `<div class="col-span-full text-center py-12 text-red-700 bg-red-50 border border-red-200 rounded-2xl text-sm font-black">Published results could not be loaded. Please refresh or contact the admin.</div>`; return; }
             const cat = window.currentCat;
             const search = (document.getElementById('global-search-input')?.value || '').toLowerCase();
@@ -882,66 +881,20 @@
                  const e = eventMap[r.eventId];
                  const name = e ? e.name : r.eventName;
                  const c = e ? e.category : r.category;
-                 const cardCfg = resultsView().resultsTab?.cardFields || {}, scoreDisplay=resultsView().resultsTab?.scoreDisplay||'total';
-
-                 const getW = (p, val, pointOverride = null, labelOverride = '', awardType = 'position') => {
-                    if(!val) return '';
-                    const arr = Array.isArray(val) ? val : [val];
-
-                    const colors = {
-                        1: { fill: 'fill-yellow-400', stroke: 'text-yellow-600', bg: 'bg-yellow-50' },
-                        2: { fill: 'fill-slate-300', stroke: 'text-slate-500', bg: 'bg-slate-50' },
-                        3: { fill: 'fill-orange-300', stroke: 'text-orange-600', bg: 'bg-orange-50' }
-                    }[p] || { fill: 'fill-indigo-200', stroke: 'text-indigo-500', bg: 'bg-indigo-50' };
-
-                    return arr.map(id => {
-                        let displayName, detail, avatar='';
-                        if(r.type === 'Group') {
-                            const registration = registrations.find(item => item.id === id);
-                            displayName = registration?.team || id;
-                            detail = cardCfg.team === false ? '' : `Group Entry ${registration?.slotIndex || ''}`.trim();
-                        } else {
-                            // FAST LOOKUP
-                            const s = window.studentForResultWinner?.(id) || studentMap[id];
-                            if(s) {
-                                displayName = s.name;
-                                avatar = personAvatar(s);
-                                detail = [cardCfg.team !== false && s.team, cardCfg.gender && studentGender(s), cardCfg.chestNo !== false && `Chest ${s.chestNo || '-'}`].filter(Boolean).join(' • ');
-                            } else {
-                                displayName = 'Unknown'; detail = '-';
-                            }
-                        }
-
-                        let pts = 0;
-                        if(pointOverride !== null) pts = Number(pointOverride || 0); else if(p===1) pts=r.points?.first || 0; else if(p===2) pts=r.points?.second || 0; else if(p===3) pts=r.points?.third || 0;
-
-                        return `
-                        <div class="flex items-center gap-3 p-2 rounded-xl ${colors.bg} border border-transparent">
-                            ${avatar || `<div class="w-8 h-8 flex items-center justify-center shrink-0"><i data-lucide="medal" class="w-6 h-6 ${colors.stroke} ${colors.fill}"></i></div>`}
-                            <div class="min-w-0 flex-1">
-                                <p class="text-[9px] font-black uppercase tracking-wide ${colors.stroke}">${labelOverride || (p===1?'First':p===2?'Second':p===3?'Third':`Place ${p}`)}</p>
-                                <p class="text-sm font-bold text-slate-800 leading-tight truncate">${displayName}</p>
-                                ${detail ? `<p class="text-[10px] font-bold opacity-60 uppercase tracking-wide mt-0.5">${detail}</p>` : ''}
-                            </div>
-                            ${scoreDisplay==='award'||cardCfg.totalPoints===false||(awardType==='position'&&cardCfg.positionPoints===false&&scoreDisplay==='detailed')||(awardType==='grade'&&cardCfg.gradePoints===false&&scoreDisplay==='detailed')?'':`<div class="text-right"><span class="block font-black text-slate-800 leading-none">${pts}</span><span class="text-[9px] font-bold text-slate-400">${scoreDisplay==='detailed'?(awardType==='grade'?'Grade pts':'Position pts'):'Pts'}</span></div>`}
-                        </div>`;
-                    }).join('');
-                };
-
-                const downloadCfg=resultsView().resultsTab?.downloads||{},awardRows=Array.isArray(r.places)&&r.places.length?r.places.map((place,index)=>({position:index+1,winners:place.winners||[]})):[{position:1,winners:[r.winners?.first].flat().filter(Boolean)},{position:2,winners:[r.winners?.second].flat().filter(Boolean)},{position:3,winners:[r.winners?.third].flat().filter(Boolean)}],templateDownloads=awardRows.flatMap(row=>row.winners.flatMap(id=>eligibleTemplates(r,e,row.position).filter(template=>downloadCfg[template.type==='certificate'?'certificate':'resultCard']!==false).map(template=>`<button onclick="event.preventDefault();downloadResultTemplate('${template.id}','${r.eventId}','${id}',${row.position})" class="block w-full rounded-lg px-3 py-2 text-left text-xs font-bold hover:bg-slate-100">${template.type==='certificate'?'Certificate':'Result Card'} — ${template.name}</button>`))),downloadItems=[...(downloadCfg.poster===false?[]:[`<button onclick="event.preventDefault();downloadPoster('${r.eventId}', this)" class="block w-full rounded-lg px-3 py-2 text-left text-xs font-bold hover:bg-slate-100">Result Poster</button>`]),...templateDownloads];
-                const div = document.createElement('div');
-                div.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden transition hover:shadow-md";
-                div.innerHTML = `
-                    <div class="mb-4 pr-10">
-                        <h4 class="font-black text-slate-800 text-lg leading-tight mb-1">${name}</h4>
-                        <div class="${cardCfg.category === false ? 'hidden' : 'flex'} gap-2">
-                             <span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 uppercase tracking-wider">${c}</span>
-                        </div>
-                    </div>
-                    ${downloadCfg.enabled!==false&&downloadItems.length?`<details class="absolute right-4 top-4 z-20"><summary class="list-none cursor-pointer rounded-full p-2 text-green-600 hover:bg-green-50" title="Download"><i data-lucide="download" class="h-5 w-5"></i></summary><div class="absolute right-0 mt-1 w-56 rounded-xl border bg-white p-2 shadow-xl">${downloadItems.join('')}</div></details>`:''}
-                    <div class="space-y-2 relative z-10">
-                        ${cardCfg.position===false?'':(Array.isArray(r.places)&&r.places.length?r.places.map((place,index)=>getW(index+1,place.winners,place.earnedValue??place.value,place.label,'position')).join(''):`${getW(1,r.winners?.first,null,'','position')}${getW(2,r.winners?.second,null,'','position')}${getW(3,r.winners?.third,null,'','position')}`)}${cardCfg.grade===false?'':(r.gradeAwards||[]).map(grade=>getW(0,grade.winners,grade.earnedValue??grade.value,grade.label||grade.grade||'Grade','grade')).join('')}
-                    </div>`;
+                 // The former configurable download menu (downloadItems.join) is deliberately omitted from this simplified public card.
+                 const winnerInfo = id => {
+                    const registration=registrations.find(item=>item.id===id||(item.studentIds||[]).includes(id)||(item.participantIds||[]).includes(id))||{};
+                    const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id)||{};
+                    const name=person.name||person.fullName||registration.participantName||registration.studentName||registration.name||registration.team||String(id||'');
+                    const chest=person.chestNo||registration.chestNo||registration.participantChestNo||'';
+                    return {name,chest};
+                 };
+                 const awardRows=Array.isArray(r.places)&&r.places.length?r.places.map((place,index)=>({label:place.label||['First','Second','Third'][index]||`Place ${index+1}`,winners:place.winners||[],points:Number(place.earnedValue??place.value??0),index:index+1})):[['First',r.winners?.first,r.points?.first],['Second',r.winners?.second,r.points?.second],['Third',r.winners?.third,r.points?.third]].map(([label,winners,points],index)=>({label,winners:Array.isArray(winners)?winners:[winners].filter(Boolean),points:Number(points||0),index:index+1}));
+                 const colours=['border-yellow-200 bg-yellow-50 text-yellow-800','border-slate-200 bg-slate-50 text-slate-700','border-orange-200 bg-orange-50 text-orange-800'];
+                 const awardCard=award=>{const winnerList=award.winners.map(id=>{const person=winnerInfo(id);return `<div class="min-w-0"><b class="block truncate text-sm text-slate-800">${html(person.name)}</b>${person.chest?`<small class="block text-[10px] font-bold uppercase text-slate-500">Chest ${html(person.chest)}</small>`:''}</div>`;}).join('')||'<span class="text-xs font-semibold text-slate-400">Not awarded</span>';return `<div class="rounded-xl border p-3 ${colours[award.index-1]||'border-indigo-200 bg-indigo-50 text-indigo-800'}"><div class="mb-2 flex items-center justify-between gap-2"><b class="text-xs font-black uppercase">${html(award.label)}</b><span class="rounded-full bg-white px-2 py-1 text-xs font-black text-slate-800">${award.points} pts</span></div><div class="space-y-2">${winnerList}</div></div>`;};
+                 const div = document.createElement('div');
+                 div.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-hidden";
+                 div.innerHTML = `<div class="mb-4"><h4 class="font-black text-slate-800 text-lg leading-tight">${html(name||'Event')}</h4><span class="mt-2 inline-flex rounded border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-600">${html(c||'General')}</span></div><div class="grid gap-2">${awardRows.map(awardCard).join('')}</div>`;
                 frag.appendChild(div);
             });
 
