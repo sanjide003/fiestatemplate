@@ -892,21 +892,29 @@
                     const person = window.studentForResultWinner?.(id) || studentMap[id] || participants.find(item=>item.id===id);
                     return { name: person?.name || person?.fullName || String(id || ''), chestNo: person?.chestNo || '' };
                  };
-                 const positionRows = Array.isArray(r.places) && r.places.length
+                 const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                 const sourceRows = Array.isArray(r.places) && r.places.length
                     ? r.places.slice(0,3).map((place,index)=>({label:place.label||['First','Second','Third'][index]||`Place ${index+1}`,points:Number(place.earnedValue??place.value??0),winners:place.winners||[]}))
                     : [
                         {label:'First',points:Number(r.points?.first||0),winners:[r.winners?.first].flat().filter(Boolean)},
                         {label:'Second',points:Number(r.points?.second||0),winners:[r.winners?.second].flat().filter(Boolean)},
                         {label:'Third',points:Number(r.points?.third||0),winners:[r.winners?.third].flat().filter(Boolean)}
                     ];
-                 const positionHtml = positionRows.map((row,index)=>`<div class="rounded-xl border ${index===0?'border-yellow-100 bg-yellow-50':index===1?'border-slate-200 bg-slate-50':'border-orange-100 bg-orange-50'} p-3"><div class="mb-2 flex items-center justify-between gap-2"><b class="text-[10px] uppercase tracking-wider ${index===0?'text-yellow-700':index===1?'text-slate-600':'text-orange-700'}">${row.label}</b><span class="rounded-full bg-white px-2 py-1 text-[10px] font-black text-emerald-700">${row.points} pts</span></div>${row.winners.length?row.winners.map(id=>{const info=winnerInfo(id);return `<div class="flex items-center justify-between gap-3 text-sm"><span class="min-w-0 truncate font-black text-slate-800">${info.name}</span><span class="shrink-0 rounded bg-white px-2 py-1 text-[10px] font-bold text-slate-500">Chest ${info.chestNo || '-'}</span></div>`;}).join(''):'<p class="text-xs font-bold text-slate-400">Not awarded</p>'}</div>`).join('');
+                 const positionRows = ['First','Second','Third'].map((label,index)=>sourceRows[index]||{label,points:0,winners:[]});
+                 const styles = [
+                    {wrap:'border-yellow-200 bg-gradient-to-br from-yellow-50 via-white to-amber-50',icon:'trophy',iconBox:'bg-yellow-400 text-white shadow-yellow-200',title:'text-yellow-700',ring:'ring-yellow-100'},
+                    {wrap:'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100',icon:'medal',iconBox:'bg-slate-500 text-white shadow-slate-200',title:'text-slate-600',ring:'ring-slate-100'},
+                    {wrap:'border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50',icon:'award',iconBox:'bg-orange-500 text-white shadow-orange-200',title:'text-orange-700',ring:'ring-orange-100'}
+                 ];
+                 const positionHtml = positionRows.map((row,index)=>{const style=styles[index];return `<section class="rounded-2xl border ${style.wrap} p-3 shadow-sm"><div class="mb-3 flex items-center justify-between gap-3"><div class="flex items-center gap-2"><span class="grid h-9 w-9 place-items-center rounded-2xl ${style.iconBox} shadow-lg"><i data-lucide="${style.icon}" class="h-5 w-5"></i></span><div><p class="text-[9px] font-black uppercase tracking-[0.2em] ${style.title}">${safe(row.label)}</p><p class="text-[10px] font-bold text-slate-400">Position ${index+1}</p></div></div><div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm ring-1 ${style.ring}"><b class="block text-lg leading-none text-emerald-600">${Number(row.points||0)}</b><span class="text-[9px] font-black uppercase text-slate-400">Points</span></div></div><div class="space-y-2">${row.winners.length?row.winners.map(id=>{const info=winnerInfo(id);return `<div class="flex items-center justify-between gap-3 rounded-xl bg-white/85 px-3 py-2 ring-1 ring-black/5"><div class="min-w-0"><p class="truncate text-sm font-black text-slate-800">${safe(info.name)}</p><p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Chest No</p></div><span class="shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-black text-white shadow-sm">${safe(info.chestNo || '-')}</span></div>`;}).join(''):'<div class="rounded-xl border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs font-bold text-slate-400">Not awarded</div>'}</div></section>`;}).join('');
 
                 const div = document.createElement('div');
-                div.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative overflow-hidden transition hover:shadow-md";
+                div.className = "bg-white rounded-[1.35rem] border border-slate-200 shadow-sm p-5 relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl";
                 div.innerHTML = `
-                    <div class="mb-4">
-                        <h4 class="font-black text-slate-800 text-lg leading-tight mb-1">${name}</h4>
-                        <span class="inline-flex text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 uppercase tracking-wider">${c || 'General'}</span>
+                    <div class="mb-4 rounded-2xl bg-slate-900 p-4 text-white shadow-sm">
+                        <p class="mb-1 text-[9px] font-black uppercase tracking-[0.24em] text-blue-200">Result Card</p>
+                        <h4 class="font-black text-lg leading-tight">${safe(name)}</h4>
+                        <span class="mt-2 inline-flex rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-100">${safe(c || 'General')}</span>
                     </div>
                     <div class="space-y-2 relative z-10">${positionHtml}</div>`
                 frag.appendChild(div);
