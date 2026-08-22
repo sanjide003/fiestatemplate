@@ -801,7 +801,8 @@
         window.renderCategoryButtons = () => {
             const container = document.getElementById('cat-filters');
             if(!container) return;
-            const cfg=resultsView().resultsTab||{},available=cfg.hideEmpty?[...new Set(visiblePublishedResults().filter(result=>resultMatchesAudience(result)).map(result=>eventMap[result.eventId]?.category||result.category))]:categories,allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c!=='General')];
+            const cfg=resultsView().resultsTab||{},publishedCategories=visiblePublishedResults().map(result=>eventMap[result.eventId]?.category||result.category).filter(Boolean),configuredCategories=[...categories,...events.map(event=>event.category).filter(Boolean),...publishedCategories],available=cfg.hideEmpty?[...new Set(publishedCategories)]:[...new Set(configuredCategories)],allCats=['All',...(cfg.includeGeneral===false?[]:['General']),...available.filter(c=>c&&c!=='General')];
+            if(window.currentCat&&!allCats.includes(window.currentCat))window.currentCat='';
             container.innerHTML = allCats.map(c => {
                 const isActive = (window.currentCat === '' && c === 'All') || (window.currentCat === c);
                 const filterVal = c === 'All' ? '' : c;
