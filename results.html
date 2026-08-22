@@ -108,6 +108,8 @@
             transform-origin: left center;
         }
 
+        #header-fest-name small { display: block; margin-top: 1px; color: #059669; font-size: 0.58rem; font-weight: 900; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
+
         .app-header.search-mode #header-fest-name {
             opacity: 0;
             transform: scale(0.95);
@@ -272,6 +274,15 @@
         .cat-btn:active { transform: scale(0.95); }
 
         .animate-popup { animation: popup 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .compact-result-card { padding: 0.75rem; }
+        .winner-chip { cursor: pointer; touch-action: manipulation; }
+        .winner-chip:active { transform: scale(0.985); }
+        .winner-photo-ring { box-shadow: 0 18px 45px rgba(15,23,42,.22); }
+        @media (max-width: 640px) {
+            #results-container { gap: 0.65rem !important; padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+            #result-filter-header { margin-bottom: 0.5rem !important; padding-bottom: 0.5rem !important; }
+            .compact-result-card { border-radius: 1.05rem; padding: 0.65rem; }
+        }
         @keyframes popup { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -312,7 +323,7 @@
             <div id="header-logo-container">
                 <img src="" id="header-logo-img" class="w-full h-full object-cover" alt="Logo">
             </div>
-            <span id="header-fest-name">Fest Results</span>
+            <span id="header-fest-name"><span id="header-title-text">Fest Results</span><small id="header-live-status" class="hidden"></small></span>
             <div id="header-search-container">
                  <div class="relative w-full h-full">
                      <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
@@ -509,7 +520,7 @@
             const resultsPage = cfg.resultsPage || {};
             const footer = cfg.footer || {};
             const setText = (selector, value) => { const el = document.querySelector(selector); if(el && value) el.textContent = value; };
-            setText('#header-fest-name', resultsPage.title);
+            setText('#header-title-text', resultsPage.title);
             const resultNav = document.getElementById('nav-result');
             if(resultNav && resultsPage.resultsLabel) { resultNav.title = resultsPage.resultsLabel; resultNav.setAttribute('aria-label', resultsPage.resultsLabel); }
             setText('#tab-team h2', resultsPage.teamTitle);
@@ -549,7 +560,7 @@
         function renderAudienceFilters(){currentAudience='all';document.getElementById('nav-result')?.classList.toggle('active',window.currentTab==='result');window.lucide?.createIcons?.();}
         window.openDefaultResults=()=>{currentAudience='all';window.switchTab('result');};
         window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
-        function renderPublicResultStatus(){const container=document.getElementById('results-container');if(!container)return;let status=document.getElementById('public-result-status');if(!status){status=document.createElement('div');status.id='public-result-status';status.className='mx-4 mb-3 rounded-2xl border px-4 py-3 text-xs font-black md:mx-6';container.before(status);}const tabs=resultsView().tabs||{},hidden=tabs.result===false;if(resultFeedError){status.className='mx-4 mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 md:mx-6';status.textContent=`Published results could not be loaded: ${resultFeedError}`;status.classList.remove('hidden');return;}if(hidden){status.className='mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 md:mx-6';status.textContent='Results tab is disabled by Admin Public View settings.';status.classList.remove('hidden');return;}if(lastResultsUpdatedAt){status.className='mx-4 mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-800 md:mx-6';status.textContent=`Live results updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;status.classList.remove('hidden');return;}status.classList.add('hidden');}
+        function renderPublicResultStatus(){const live=document.getElementById('header-live-status'),tabs=resultsView().tabs||{},hidden=tabs.result===false;if(!live)return;if(resultFeedError){live.textContent='Results load error';live.classList.remove('hidden');return;}if(hidden){live.textContent='Results disabled';live.classList.remove('hidden');return;}if(lastResultsUpdatedAt){live.textContent=`Live updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;live.classList.remove('hidden');return;}live.classList.add('hidden');}
         function applyResultsViewConfig(){const cfg=resultsView(),tabs={result:true,team:true,talent:true};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();renderPublicResultStatus();}
 
         // --- SEARCH OPTIMIZATION (DEBOUNCE) ---
@@ -906,17 +917,15 @@
                     {wrap:'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100',icon:'medal',iconBox:'bg-slate-500 text-white shadow-slate-200',title:'text-slate-600',ring:'ring-slate-100'},
                     {wrap:'border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50',icon:'award',iconBox:'bg-orange-500 text-white shadow-orange-200',title:'text-orange-700',ring:'ring-orange-100'}
                  ];
-                 const positionHtml = positionRows.map((row,index)=>{const style=styles[index];return `<section class="rounded-2xl border ${style.wrap} p-3 shadow-sm"><div class="mb-3 flex items-center justify-between gap-3"><div class="flex items-center gap-2"><span class="grid h-9 w-9 place-items-center rounded-2xl ${style.iconBox} shadow-lg"><i data-lucide="${style.icon}" class="h-5 w-5"></i></span><div><p class="text-[9px] font-black uppercase tracking-[0.2em] ${style.title}">${safe(row.label)}</p><p class="text-[10px] font-bold text-slate-400">Position ${index+1}</p></div></div><div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm ring-1 ${style.ring}"><b class="block text-lg leading-none text-emerald-600">${Number(row.points||0)}</b><span class="text-[9px] font-black uppercase text-slate-400">Points</span></div></div><div class="space-y-2">${row.winners.length?row.winners.map(id=>{const info=winnerInfo(id);return `<div class="flex items-center justify-between gap-3 rounded-xl bg-white/85 px-3 py-2 ring-1 ring-black/5"><div class="min-w-0"><p class="truncate text-sm font-black text-slate-800">${safe(info.name)}</p><p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Chest No</p></div><span class="shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-black text-white shadow-sm">${safe(info.chestNo || '-')}</span></div>`;}).join(''):'<div class="rounded-xl border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-center text-xs font-bold text-slate-400">Not awarded</div>'}</div></section>`;}).join('');
+                 const positionHtml = positionRows.map((row,index)=>{const style=styles[index];return `<section class="rounded-xl border ${style.wrap} p-2 shadow-sm"><div class="mb-1.5 flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="grid h-7 w-7 place-items-center rounded-xl ${style.iconBox} shadow"><i data-lucide="${style.icon}" class="h-4 w-4"></i></span><div><p class="text-[8px] font-black uppercase tracking-[0.18em] ${style.title}">${safe(row.label)}</p><p class="text-[9px] font-bold text-slate-400">Position ${index+1}</p></div></div><div class="rounded-xl bg-white px-2 py-1 text-right shadow-sm ring-1 ${style.ring}"><b class="block text-sm leading-none text-emerald-600">${Number(row.points||0)}</b><span class="text-[8px] font-black uppercase text-slate-400">Pts</span></div></div><div class="space-y-1.5">${row.winners.length?row.winners.map(id=>{const info=winnerInfo(id);return `<button type="button" onclick="openResultWinnerDetails('${safe(r.eventId)}','${safe(id)}',${index+1})" class="winner-chip flex w-full items-center justify-between gap-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-left ring-1 ring-black/5 transition hover:ring-blue-200"><div class="min-w-0"><p class="truncate text-xs font-black text-slate-800">${safe(info.name)}</p><p class="text-[8px] font-bold uppercase tracking-wide text-slate-400">Tap for poster</p></div><span class="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700">${safe(info.chestNo || '-')}</span></button>`;}).join(''):'<div class="rounded-lg border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-center text-[10px] font-bold text-slate-400">Not awarded</div>'}</div></section>`;}).join('');
 
                 const div = document.createElement('div');
-                div.className = "bg-white rounded-[1.35rem] border border-slate-200 shadow-sm p-5 relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl";
+                div.className = "compact-result-card bg-white rounded-[1.35rem] border border-slate-200 shadow-sm relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl";
                 div.innerHTML = `
-                    <div class="mb-4 rounded-2xl bg-slate-900 p-4 text-white shadow-sm">
-                        <p class="mb-1 text-[9px] font-black uppercase tracking-[0.24em] text-blue-200">Result Card</p>
-                        <h4 class="font-black text-lg leading-tight">${safe(name)}</h4>
-                        <span class="mt-2 inline-flex rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-100">${safe(c || 'General')}</span>
+                    <div class="mb-2 flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                        <div class="min-w-0"><h4 class="truncate font-black text-base leading-tight text-slate-900">${safe(name)}</h4><span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-700">${safe(c || 'General')}</span></div>
                     </div>
-                    <div class="space-y-2 relative z-10">${positionHtml}</div>`
+                    <div class="space-y-1.5 relative z-10">${positionHtml}</div>`
                 frag.appendChild(div);
             });
 
@@ -1390,88 +1399,65 @@
         window.setTalentAudience=value=>{currentTalentAudience=value;currentTalentGender='all';talentExpandedGroups.clear();renderTalentAudienceSelector();renderTalent();};
         window.setTalentGender=value=>{currentTalentGender=value;talentExpandedGroups.clear();renderTalent();};
         window.toggleTalentGroup=encoded=>{const key=decodeURIComponent(encoded);talentExpandedGroups.has(key)?talentExpandedGroups.delete(key):talentExpandedGroups.add(key);renderTalent();};
-        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;if(result.type==='Group')return;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id),person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);if(!person)return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',gender:studentGender(person),category:event.category||result.category||'General',photoData:person.photoData||person.photo||'',audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
+        const htmlEscape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const normalizeTalentGender = value => {const v=String(value||'').trim().toLowerCase();if(['male','boy','boys','m','ആൺ','ആൺകുട്ടി','ആൺകുട്ടികൾ'].includes(v))return 'Boys';if(['female','girl','girls','f','പെൺ','പെൺകുട്ടി','പെൺകുട്ടികൾ'].includes(v))return 'Girls';return '';};
+        const isGeneralTalentCategory = value => !String(value||'').trim() || String(value||'').trim().toLowerCase()==='general';
+        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;if(result.type==='Group')return;const category=event.category||result.category||'';if(isGeneralTalentCategory(category))return;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);if(!person)return;const gender=normalizeTalentGender(studentGender(person)||eventGender(event));if(!gender)return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',gender,category,categoryText:categoryLabel(category)||category,photoData:person.photoData||person.photo||'',score:Number(award.value||0),awardType:award.awardType,rank:award.label||award.awardType||'Award',eventName:event.name||result.eventName||'Published event',eventId:result.eventId});}));});return rows;};
+        const talentEntries = () => {const groups=new Map();talentPerformanceRows().forEach(row=>{const key=`${row.category}||${row.gender}`,label=`${row.categoryText} • ${row.gender}`;if(!groups.has(key))groups.set(key,{label,category:row.category,gender:row.gender,students:new Map()});const group=groups.get(key),current=group.students.get(row.id)||{id:row.id,name:row.name,team:row.team,chestNo:row.chestNo,gender:row.gender,category:row.category,categoryText:row.categoryText,photoData:row.photoData,score:0,positionPoints:0,gradePoints:0,events:[]};current.score+=row.score;if(row.awardType==='grade')current.gradePoints+=row.score;else current.positionPoints+=row.score;current.events.push(row);group.students.set(row.id,current);});return [...groups.values()].map(group=>({...group,ranked:[...group.students.values()].filter(item=>item.score>0).sort((a,b)=>b.score-a.score||b.positionPoints-a.positionPoints||a.name.localeCompare(b.name))})).filter(group=>group.ranked.length).sort((a,b)=>a.categoryText.localeCompare(b.categoryText)||a.gender.localeCompare(b.gender));};
+        const talentRankClass = index => index===0?'bg-yellow-100 text-yellow-700 border-yellow-200':index===1?'bg-slate-100 text-slate-700 border-slate-200':index===2?'bg-orange-100 text-orange-700 border-orange-200':'bg-blue-50 text-blue-700 border-blue-100';
         const renderTalent = () => {
-            const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=4,expandedCount=15,fields=cfg.cardFields||{},audienceCfg={enabled:true,groupByCategory:true,groupByGender:true},allRows=talentPerformanceRows(),genders=[...new Set(allRows.map(row=>row.gender).filter(Boolean))],rows=allRows,groups=new Map();
-            if(audienceCfg.enabled===false){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white py-12 text-center text-slate-400">Top Talent is disabled for this audience.</div>';return;}
-            if(!genders.includes(currentTalentGender)&&currentTalentGender!=='all')currentTalentGender='all';
-            const fallback=cfg.rankingMode||'category',byCategory=audienceCfg.groupByCategory!==false,byGender=audienceCfg.groupByGender===true;
-            rows.forEach(row=>{const parts=[];if(byCategory)parts.push(row.category);if(byGender)parts.push(row.gender);const key=parts.filter(Boolean).join(' • ')||'Overall';if(!groups.has(key))groups.set(key,new Map());const map=groups.get(key),current=map.get(row.id)||{...row,score:0,positionPoints:0,gradePoints:0};current.score+=row.score;if(row.awardType==='grade')current.gradePoints+=row.score;else current.positionPoints+=row.score;map.set(row.id,current);});
-            const card=(entry,index)=>{const details=[fields.team!==false&&entry.team,fields.gender&&entry.gender,fields.category&&entry.category,fields.chestNo!==false&&`Chest ${entry.chestNo||'-'}`].filter(Boolean);return `<div onclick="showStudentDetails('${entry.id}')" class="flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${index===0?'bg-yellow-100 text-yellow-700':'bg-slate-100 text-slate-600'} text-xs font-black">#${index+1}</span>${personAvatar(entry,'h-10 w-10')}<div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${entry.name}</h4>${details.length?`<p class="truncate text-[10px] font-bold uppercase text-slate-500">${details.join(' • ')}</p>`:''}${fields.positionPoints?`<small class="mr-2 text-[9px] font-bold text-indigo-500">Position ${entry.positionPoints}</small>`:''}${fields.gradePoints?`<small class="text-[9px] font-bold text-emerald-600">Grade ${entry.gradePoints}</small>`:''}</div>${fields.totalPoints===false?'':`<b class="text-lg text-blue-600">${entry.score}</b>`}</div>`;};
-            const genderControls='';
-            container.innerHTML=genderControls+([...groups.entries()].map(([label,map])=>{const ranked=[...map.values()].filter(item=>item.score>0).sort((a,b)=>b.score-a.score),encoded=encodeURIComponent(label),expanded=talentExpandedGroups.has(label),list=expanded?ranked.slice(0,expandedCount):ranked.slice(0,topCount),button=cfg.showViewAll!==false&&ranked.length>topCount?`<button type="button" onclick="toggleTalentGroup('${encoded}')" class="rounded-full border border-blue-200 bg-white px-4 py-2 text-[10px] font-black text-blue-700 shadow-sm">${expanded?'Show Top '+topCount:'View All'}</button>`:'';return `<section class="space-y-3"><div class="flex items-center justify-between gap-3"><h3 class="flex items-center gap-2 px-1 font-bold text-slate-700"><span class="h-4 w-1.5 rounded-full bg-blue-500"></span>${label}</h3>${button}</div><div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">${list.map(card).join('')}</div></section>`;}).join('')||'<div class="rounded-2xl border border-dashed bg-white py-12 text-center italic text-slate-400">No individual scores recorded for this audience.</div>');
+            const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=4,expandedCount=15,groups=talentEntries();
+            if(!container)return;
+            if(!groups.length){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white px-4 py-12 text-center text-sm font-bold text-slate-400">No individual top talents yet. Published single-item results from non-General categories will appear here.</div>';return;}
+            const card=(entry,index)=>`<button type="button" onclick="showStudentDetails('${htmlEscape(entry.id)}')" class="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md active:scale-[0.99]"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${talentRankClass(index)} text-xs font-black">#${index+1}</span>${personAvatar(entry,'h-11 w-11')}<span class="min-w-0 flex-1"><b class="block truncate text-sm font-black text-slate-800">${htmlEscape(entry.name)}</b><small class="block truncate text-[10px] font-bold uppercase text-slate-500">${htmlEscape(entry.team||'Team')} • Chest ${htmlEscape(entry.chestNo||'-')}</small><small class="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-indigo-500">${entry.events.length} event${entry.events.length===1?'':'s'} • Position ${entry.positionPoints} • Grade ${entry.gradePoints}</small></span><span class="rounded-2xl bg-blue-600 px-3 py-2 text-center text-white shadow-sm"><b class="block text-lg leading-none">${entry.score}</b><small class="text-[8px] font-black uppercase">Pts</small></span></button>`;
+            container.innerHTML=groups.map(group=>{const expanded=talentExpandedGroups.has(group.label),ranked=group.ranked,list=expanded?ranked.slice(0,expandedCount):ranked.slice(0,topCount),button=cfg.showViewAll!==false&&ranked.length>topCount?`<button type="button" onclick="toggleTalentGroup('${encodeURIComponent(group.label)}')" class="rounded-full border border-blue-200 bg-white px-4 py-2 text-[10px] font-black text-blue-700 shadow-sm">${expanded?'Show Top '+topCount:'View All'}</button>`:'';return `<section class="space-y-3"><div class="flex items-center justify-between gap-3"><h3 class="flex min-w-0 items-center gap-2 px-1 font-black text-slate-800"><span class="h-5 w-1.5 rounded-full ${group.gender==='Girls'?'bg-pink-500':'bg-blue-500'}"></span><span class="truncate">${htmlEscape(group.label)}</span></h3>${button}</div><div class="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">${list.map(card).join('')}</div></section>`;}).join('');
+            lucide.createIcons();
         };
 
         window.showAllTalents = (cat) => {
-            const list = Object.values(studentScores).filter(s => s.category === cat).sort((a,b) => b.score - a.score);
-            document.getElementById('modal-talent-title').innerText = `Top Talents - ${cat}`;
-            document.getElementById('modal-talent-content').innerHTML = list.map((s, i) => {
-                let badgeClass = 'bg-slate-50 text-slate-400';
-                if(i===0) badgeClass = 'bg-yellow-100 text-yellow-600';
-                else if(i===1) badgeClass = 'bg-slate-200 text-slate-600';
-                else if(i===2) badgeClass = 'bg-orange-100 text-orange-600';
+            talentExpandedGroups.add(String(cat||''));
+            renderTalent();
+        };
 
-                return `
-                <div onclick="showStudentDetails('${s.id}')" class="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 mb-2 shadow-sm cursor-pointer hover:border-blue-200 transition">
-                    <div class="flex items-center gap-3">
-                        <span class="${badgeClass} w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shadow-sm">#${i+1}</span>
-                        ${personAvatar(s,'h-10 w-10')}
-                        <div>
-                            <h4 class="font-bold text-slate-700 text-sm">${s.name}</h4>
-                            <p class="text-[10px] text-slate-500 font-bold uppercase flex gap-2">
-                                <span>${s.team}</span>
-                                <span class="text-slate-300">•</span>
-                                <span class="text-indigo-500">Chest ${s.chestNo||'-'}</span>
-                            </p>
-                        </div>
-                    </div>
-                    <span class="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-sm">${s.score}</span>
-                </div>`;
-            }).join('');
-            document.getElementById('modal-talent').classList.remove('hidden');
+        const awardRowsForStudent = (sid) => talentPerformanceRows().filter(row=>row.id===sid).map(row=>({ result:{eventId:row.eventId}, event:{name:row.eventName,category:row.category}, rank:row.rank, pts:Number(row.score||0), awardType:row.awardType }));
+
+        const renderStudentPosterModal = (base, rows, context={}) => {
+            const teamName = base.team || '';
+            const color = teamColor(teamName, teamColors);
+            const textColor = readableTextColor(color);
+            const photo = base.photoData || base.photo || '';
+            const total = rows.reduce((sum,item)=>sum+Number(item.pts||0),0);
+            const header = document.querySelector('#modal-student-details .rounded-t-3xl');
+            if(header){
+                header.className = 'p-5 text-white rounded-t-3xl relative overflow-hidden shrink-0';
+                header.style.background = `linear-gradient(135deg, ${color}, #0f172a)`;
+                header.style.color = textColor;
+                header.innerHTML = `<div class="absolute inset-0 opacity-20" style="background: radial-gradient(circle at 20% 10%, #fff 0 10%, transparent 11%), radial-gradient(circle at 85% 70%, #fff 0 14%, transparent 15%)"></div><button onclick="closeModal('modal-student-details')" class="absolute top-4 right-4 bg-black/20 p-2 rounded-full hover:bg-black/30 transition z-20 text-white"><i data-lucide="x" class="w-5 h-5"></i></button><div class="relative z-10 flex items-center gap-4"><div class="winner-photo-ring grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-white/70 bg-white/90 text-3xl font-black text-slate-700">${photo?`<img src="${htmlEscape(photo)}" class="h-full w-full object-cover" alt="">`:htmlEscape(String(base.name||'?').charAt(0).toUpperCase())}</div><div class="min-w-0"><p class="mb-1 inline-flex rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em]">${htmlEscape(context.badge||'Talent Poster')}</p><h3 class="text-2xl font-black leading-tight" id="std-modal-name">${htmlEscape(base.name || base.fullName || base.id || '')}</h3><div class="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase"><span id="std-modal-chest" class="rounded-full bg-white/20 px-2 py-1">${htmlEscape(context.idLabel||'Chest')} ${htmlEscape(base.chestNo || base.id || '-')}</span><span id="std-modal-team" class="rounded-full bg-white/20 px-2 py-1">${htmlEscape(teamLabel(teamName) || 'Team')}</span></div></div></div><div class="relative z-10 mt-4 flex items-end justify-between gap-3 rounded-2xl bg-white/18 p-3 backdrop-blur"><div><p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">${htmlEscape(context.title||'Individual Points')}</p><p class="text-sm font-black">${htmlEscape(context.subtitle||'Published single-item results')}</p></div><div class="text-right"><span class="text-[9px] font-black uppercase opacity-75">Score</span><span id="std-modal-score" class="block text-2xl font-black leading-none">${total}</span></div></div>`;
+            }
+            const content = document.getElementById('std-modal-content');
+            content.innerHTML = rows.length ? rows.sort((a,b)=>Number(b.pts||0)-Number(a.pts||0)).map(item => `<div onclick="goToResultFromStudent('${htmlEscape(item.result.eventId)}')" class="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-50 active:scale-[0.98] transition"><div><h4 class="font-bold text-slate-800 text-sm">${htmlEscape(item.event.name || item.result.eventName || 'Published event')}</h4><p class="text-[10px] font-bold uppercase text-slate-400">${htmlEscape(categoryLabel(item.event.category)||item.event.category||'')}</p><span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-100">${htmlEscape(item.rank)}</span></div><div class="text-right"><span class="block font-black text-slate-800 text-lg leading-none">${Number(item.pts||0)}</span><span class="text-[9px] font-bold text-slate-400">Pts</span></div></div>`).join('') : `<p class="text-center text-slate-400 text-xs italic py-4">No individual points recorded</p>`;
+            document.querySelector('#modal-student-details p.text-xs.font-bold')?.replaceChildren(document.createTextNode('Points & winning events'));
+            document.getElementById('modal-student-details').classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.openResultWinnerDetails = (eventId, winnerId, position=1) => {
+            const r = results.find(item => item.eventId === eventId || item.id === eventId);
+            const e = eventMap[eventId] || r || {};
+            const isGroup = r?.type === 'Group';
+            const registration = isGroup ? registrations.find(item => item.id === winnerId) : null;
+            const person = isGroup ? null : (window.studentForResultWinner?.(winnerId) || studentMap[winnerId] || participants.find(item=>item.id===winnerId));
+            const base = person || { id:winnerId, name:registration?.team || winnerId, team:registration?.team || '', chestNo:[...(registration?.studentIds||[]),...(registration?.participantIds||[])].map(pid => (window.studentForResultWinner?.(pid)||studentMap[pid]||participants.find(item=>item.id===pid))?.chestNo).filter(Boolean).join(', ') };
+            const rows = isGroup ? [{result:r,event:e,rank:['','First Prize','Second Prize','Third Prize'][position] || `Position ${position}`,pts:Number(r?.places?.[position-1]?.earnedValue ?? r?.places?.[position-1]?.value ?? r?.points?.[['','first','second','third'][position]] ?? 0)}] : awardRowsForStudent(winnerId);
+            renderStudentPosterModal(base, rows, {badge:'Winner Poster',title:e.name||'Published Result',subtitle:`${['','First','Second','Third'][position] || `Position ${position}`} • ${categoryLabel(e.category||r?.category)||'General'}`,idLabel:isGroup?'ID':'Chest'});
         };
 
         window.showStudentDetails = (sid) => {
-            const s = studentScores[sid];
-            if(!s) return;
-            document.getElementById('std-modal-name').innerText = s.name;
-            document.getElementById('std-modal-team').innerText = s.team;
-            document.getElementById('std-modal-chest').innerText = `Chest: ${s.chestNo || '-'}`;
-            document.getElementById('std-modal-score').innerText = s.score;
-
-            const wins = results.filter(r => {
-                if(r.status && r.status !== 'published') return false;if(resultEventCancelled(r))return false;
-                const check = (val) => { if(!val) return false; const arr = Array.isArray(val) ? val : [val]; return arr.includes(sid); };
-                return check(r.winners.first) || check(r.winners.second) || check(r.winners.third);
-            });
-
-            const content = document.getElementById('std-modal-content');
-            if(wins.length === 0) {
-                 content.innerHTML = `<p class="text-center text-slate-400 text-xs italic py-4">No wins recorded</p>`;
-            } else {
-                content.innerHTML = wins.map(r => {
-                    const e = eventMap[r.eventId];
-                    let rank = ''; let pts = 0; let badgeColor = '';
-                    const check = (val) => { if(!val) return false; const arr = Array.isArray(val) ? val : [val]; return arr.includes(sid); };
-
-                    if(check(r.winners.first)) { rank = '1st Prize'; pts = r.points.first; badgeColor = 'bg-yellow-100 text-yellow-700 border-yellow-200'; }
-                    else if(check(r.winners.second)) { rank = '2nd Prize'; pts = r.points.second; badgeColor = 'bg-slate-100 text-slate-700 border-slate-200'; }
-                    else if(check(r.winners.third)) { rank = '3rd Prize'; pts = r.points.third; badgeColor = 'bg-orange-100 text-orange-700 border-orange-200'; }
-
-                    return `
-                    <div onclick="goToResultFromStudent('${r.eventId}')" class="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-50 active:scale-[0.98] transition">
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">${e ? e.name : r.eventName}</h4>
-                            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${badgeColor}">${rank}</span>
-                        </div>
-                        <div class="text-right">
-                             <span class="block font-black text-slate-800 text-lg leading-none">${pts}</span>
-                             <span class="text-[9px] font-bold text-slate-400">Pts</span>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-            document.getElementById('modal-student-details').classList.remove('hidden');
+            const rows = awardRowsForStudent(sid);
+            const row = talentPerformanceRows().find(item=>item.id===sid);
+            const person = window.studentForResultWinner?.(sid) || studentMap[sid] || participants.find(item=>item.id===sid) || studentScores[sid] || row;
+            if(!person && !row)return;
+            renderStudentPosterModal({...person, id:sid, name:person?.name||person?.fullName||row?.name||sid, team:person?.team||row?.team||'', chestNo:person?.chestNo||row?.chestNo||'', photoData:person?.photoData||person?.photo||row?.photoData||''}, rows, {badge:'Top Talent',title:'Individual Talent Points',subtitle:'Single-item published events',idLabel:'Chest'});
         };
 
         window.goToResultFromStudent = (eventId) => {
