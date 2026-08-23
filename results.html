@@ -469,6 +469,7 @@
 
     <script type="module">
         import { db, auth } from './firebase-config.js';
+        import { fetchPublicCollectionFields, stripPublicPersonMedia } from './public-data-utils.js';
         import { collection, onSnapshot, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { eventContributesToTeamScore, normalizeFestSetup, readableTextColor, teamColor } from './fest-config.js';
@@ -539,13 +540,17 @@
 
         const resultsView=()=>festSetup.publicView?.resultsPage||{};
         let currentAudience='',currentTalentAudience='',currentTalentGender='all',talentExpandedGroups=new Set(),initialPublicTabApplied=false;
+        const RESULT_PAGE_SIZE = 15;
+        let resultRenderLimit = RESULT_PAGE_SIZE, resultHydrationRunning = false;
         let teamTimelineResizeTimer;window.addEventListener('resize',()=>{clearTimeout(teamTimelineResizeTimer);teamTimelineResizeTimer=setTimeout(()=>{if(window.currentTab==='team')renderTeams(false);},160);},{passive:true});
         const personType=id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);return studentMap[id]||person?.sourceType==='student_directory'?'student':person?.participantType||'student';};
         const resultWinnerIds=result=>resultAwards(result).flatMap(award=>award.winners||[]);
-        const winnerProfile=id=>window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id)||students.find(student=>String(student.chestNo||'')===String(id||''))||students.find(student=>String(student.name||'').trim().toLowerCase()===String(id||'').trim().toLowerCase());
-        const winnerDisplayName=(result,id)=>{if(result?.type==='Group'){const registration=registrations.find(item=>item.id===id);return registration?.team||id;}const person=winnerProfile(id);return person?.name||person?.fullName||person?.participantName||id||'Unknown';};
+        const registrationPersonMeta=(result,id)=>{const reg=registrations.find(item=>item.eventId===(result?.eventId||result?.id)&&[...(item.studentIds||[]),...(item.participantIds||[])].includes(id));const meta=reg?.participantMeta?.[id]||{};return reg||Object.keys(meta).length?{id,name:meta.name||meta.studentName||meta.participantName||'',fullName:meta.fullName||'',participantName:meta.participantName||'',team:meta.team||reg?.team||'',category:meta.category||'',gender:meta.gender||'',chestNo:meta.chestNo||'',details:meta.details||{},sourceType:meta.sourceType||''}:null;};
+        const winnerProfile=(id,result=null)=>window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id)||students.find(student=>String(student.chestNo||'')===String(id||''))||students.find(student=>String(student.name||'').trim().toLowerCase()===String(id||'').trim().toLowerCase())||registrationPersonMeta(result,id);
+        const winnerIsResolved=(result,id)=>Boolean(result?.type==='Group'?registrations.find(item=>item.id===id):winnerProfile(id,result));
+        const winnerDisplayName=(result,id)=>{if(result?.type==='Group'){const registration=registrations.find(item=>item.id===id);return registration?.team||'Loading team…';}const person=winnerProfile(id,result);return person?.name||person?.fullName||person?.participantName||(winnerIsResolved(result,id)?id:'Loading participant…');};
         const personClass=person=>person?.class||person?.className||person?.standard||person?.division||person?.details?.class||'';
-        const winnerMeta=(result,id,fields={})=>{if(result?.type==='Group'){const registration=registrations.find(item=>item.id===id);return [registration?.slotIndex&&`Group Entry ${registration.slotIndex}`].filter(Boolean).join(' • ');}const person=winnerProfile(id);return [fields.chestNo!==false&&`Chest ${person?.chestNo||'-'}`,personClass(person)&&`Class ${personClass(person)}`].filter(Boolean).join(' • ');};
+        const winnerMeta=(result,id,fields={})=>{if(result?.type==='Group'){const registration=registrations.find(item=>item.id===id);return [registration?.slotIndex&&`Group Entry ${registration.slotIndex}`].filter(Boolean).join(' • ');}const person=winnerProfile(id,result);return [fields.chestNo!==false&&`Chest ${person?.chestNo||'-'}`,personClass(person)&&`Class ${personClass(person)}`].filter(Boolean).join(' • ');};
         const resultCategory=result=>String(eventMap[result.eventId]?.category||result.category||'General').trim()||'General';
         const resultGender=result=>String(eventGender(eventMap[result.eventId])||result.gender||'Both').trim()||'Both';
         const resultEventCancelled=result=>eventMap[result.eventId]?.cancelled===true||result.cancelled===true;
@@ -555,12 +560,13 @@
         function defaultResultAudience(){const cfg=resultsView().audiences||{},keys=resultAudienceKeys();return keys.includes(cfg.default)?cfg.default:(keys[0]||(cfg.showAll!==false?'all':''));}
         function renderAudienceFilters(){const box=document.getElementById('audience-nav-items'),cfg=resultsView().audiences||{},defs=festSetup.participantTypeDefinitions||[];if(!box)return;const fallback=defaultResultAudience(),keys=resultAudienceKeys().filter(key=>key!==fallback),visible=cfg.showAll!==false&&resultAudienceKeys().length>1?[...keys,'all']:keys;box.innerHTML=visible.map(key=>{const label=key==='all'?'All':defs.find(item=>item.key===key)?.label||key;return `<button type="button" onclick="setResultAudience('${key}')" class="nav-item flex-col gap-0.5 ${window.currentTab==='result'&&currentAudience===key?'active':''}" aria-label="${label} results" title="${label} Results"><i data-lucide="${key==='all'?'users':key==='student'?'graduation-cap':key==='parent'?'heart-handshake':key==='staff'?'badge-check':'user'}" class="h-4 w-4"></i><span class="audience-nav-label">${label}</span></button>`;}).join('');document.getElementById('nav-result')?.classList.toggle('active',window.currentTab==='result'&&currentAudience===fallback);window.lucide?.createIcons?.();}
         window.openDefaultResults=()=>{currentAudience=defaultResultAudience();window.switchTab('result');};
-        window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
+        window.setResultAudience=value=>{currentAudience=value;resultRenderLimit=RESULT_PAGE_SIZE;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
         function applyResultsViewConfig(){const cfg=resultsView(),tabs=cfg.tabs||{};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();}
         function refreshPublicResultsView(){applyResultsViewConfig();renderCategoryButtons();renderResults();if(window.currentTab==='team')renderTeams(false);renderTalent();window.lucide?.createIcons?.();}
 
         // --- SEARCH OPTIMIZATION (DEBOUNCE) ---
         const handleSearchInput = debounce((e) => {
+            resultRenderLimit = RESULT_PAGE_SIZE;
             renderResults();
         }, 300);
         document.getElementById('global-search-input').addEventListener('input', handleSearchInput);
@@ -728,7 +734,7 @@
             teams.forEach(t => { teamScores[t] = 0; teamCounts[t] = {1:0, 2:0, 3:0}; });
             students.forEach(s => { studentScores[s.id] = { ...s, score: 0 }; });
             const studentForWinner = winner => studentMap[winner] || participants.find(item=>item.id===winner) || students.find(student => String(student.chestNo || '') === String(winner || '')) || students.find(student => String(student.name || '').trim().toLowerCase() === String(winner || '').trim().toLowerCase());
-            const personAvatar = (person, size='h-8 w-8') => person?.photoData || person?.photo ? `<img src="${person.photoData || person.photo}" class="${size} shrink-0 rounded-full border border-white bg-slate-100 object-cover shadow-sm" alt="">` : `<span class="${size} grid shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">${String(person?.name || person?.participantName || '?').charAt(0).toUpperCase()}</span>`;
+            const personAvatar = (person, size='h-8 w-8') => `<span class="${size} grid shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-black text-indigo-700">${String(person?.name || person?.participantName || '?').charAt(0).toUpperCase()}</span>`;
             window.studentForResultWinner = studentForWinner;
 
             visiblePublishedResults().forEach(r => {
@@ -811,11 +817,12 @@
             container.innerHTML = allCats.map(c => {
                 const isActive = (window.currentCat === '' && c === 'All') || (window.currentCat === c);
                 const filterVal = c === 'All' ? '' : c;
-                return `<button onclick="filterCategory('${filterVal}')" class="cat-btn ${isActive ? 'active' : ''}">${c}</button>`;
+                return `<button type="button" data-result-category="${encodeURIComponent(filterVal)}" onclick="filterCategory(decodeURIComponent(this.dataset.resultCategory || ''))" class="cat-btn ${isActive ? 'active' : ''}">${c}</button>`;
             }).join('');
         };
         window.filterCategory = (cat) => {
             window.currentCat = cat;
+            resultRenderLimit = RESULT_PAGE_SIZE;
             renderCategoryButtons();
             renderResults();
         };
@@ -866,7 +873,10 @@
                 }
 
                 return (!cat || String(c).trim() === String(cat).trim()) && match;
-            }).sort((a,b) => b.timestamp - a.timestamp);
+            }).sort((a,b) => Number(b.timestamp?.toMillis?.()||b.timestamp||b.publishedAt?.toMillis?.()||b.publishedAt||0) - Number(a.timestamp?.toMillis?.()||a.timestamp||a.publishedAt?.toMillis?.()||a.publishedAt||0));
+
+            const visibleResults = filtered.slice(0, resultRenderLimit);
+            hydrateVisibleWinnerProfiles(visibleResults);
 
             if(filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-12 text-slate-400 italic text-sm flex flex-col items-center gap-2">
@@ -878,7 +888,7 @@
 
             // Using DocumentFragment for cleaner DOM insertion
             const frag = document.createDocumentFragment();
-            filtered.forEach(r => {
+            visibleResults.forEach(r => {
                  const e = eventMap[r.eventId];
                  const name = e ? e.name : r.eventName;
                  const c = resultCategory(r);
@@ -896,7 +906,7 @@
 
                     return arr.map(id => {
                         let displayName=winnerDisplayName(r,id), detail=winnerMeta(r,id,cardCfg), avatar='';
-                        if(r.type !== 'Group') { const s = winnerProfile(id); if(s) avatar = personAvatar(s); }
+                        if(r.type !== 'Group') { const s = winnerProfile(id,r); if(s) avatar = personAvatar(s); }
 
                         let pts = 0;
                         if(pointOverride !== null) pts = Number(pointOverride || 0); else if(p===1) pts=r.points?.first || 0; else if(p===2) pts=r.points?.second || 0; else if(p===3) pts=r.points?.third || 0;
@@ -934,8 +944,48 @@
 
             container.innerHTML = '';
             container.appendChild(frag);
+            if(filtered.length > visibleResults.length) {
+                const more = document.createElement('button');
+                more.type = 'button';
+                more.className = 'col-span-full mx-auto my-2 rounded-full border bg-white px-5 py-3 text-xs font-black text-slate-600 shadow-sm';
+                more.textContent = `Load more results (${filtered.length - visibleResults.length} remaining)`;
+                more.onclick = () => { resultRenderLimit += RESULT_PAGE_SIZE; renderResults(); };
+                container.appendChild(more);
+            }
             lucide.createIcons();
         };
+
+        async function hydrateVisibleWinnerProfiles(resultRows = []) {
+            if(resultHydrationRunning) return;
+            const ids = [...new Set(resultRows.filter(result=>result.type!=='Group').flatMap(result=>resultWinnerIds(result).filter(id=>id&&!winnerIsResolved(result,id))))];
+            if(!ids.length) return;
+            resultHydrationRunning = true;
+            try {
+                const fetched = await Promise.all(ids.slice(0, 45).map(async id => {
+                    try {
+                        const [studentSnap, participantSnap] = await Promise.all([getDoc(doc(db,'students',id)), getDoc(doc(db,'participants',id))]);
+                        const snap = studentSnap.exists() ? studentSnap : participantSnap.exists() ? participantSnap : null;
+                        return snap ? { id:snap.id, ...stripPublicPersonMedia(snap.data()) } : null;
+                    } catch(error) { console.warn('Unable to hydrate public winner profile', id, error); return null; }
+                }));
+                let changed = false;
+                fetched.filter(Boolean).forEach(person => {
+                    if(person.participantType && person.participantType !== 'student') {
+                        if(!participants.some(item=>item.id===person.id)) participants.push(person);
+                    } else if(!students.some(item=>item.id===person.id)) students.push(person);
+                    changed = true;
+                });
+                if(changed) processData();
+            } finally { resultHydrationRunning = false; }
+        }
+
+        window.addEventListener('scroll', () => {
+            if(window.currentTab !== 'result') return;
+            if(window.innerHeight + window.scrollY < document.documentElement.scrollHeight - 600) return;
+            const before = resultRenderLimit;
+            resultRenderLimit += RESULT_PAGE_SIZE;
+            if(resultRenderLimit !== before) renderResults();
+        }, { passive:true });
 
         window.downloadResultTemplate = async (templateId,eventId,winnerId,position) => {
             const raw=templates.find(item=>item.id===templateId),result=results.find(item=>item.eventId===eventId),event=eventMap[eventId];if(!raw||!result||result.status&&result.status!=='published')return showToast('Template is not available');
@@ -1402,7 +1452,7 @@
         window.setTalentAudience=value=>{currentTalentAudience=value;currentTalentGender='all';talentExpandedGroups.clear();renderTalentAudienceSelector();renderTalent();};
         window.setTalentGender=value=>{currentTalentGender=value;talentExpandedGroups.clear();renderTalent();};
         window.toggleTalentGroup=encoded=>{const key=decodeURIComponent(encoded);talentExpandedGroups.has(key)?talentExpandedGroups.delete(key):talentExpandedGroups.add(key);renderTalent();};
-        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=winnerProfile(id);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',className:personClass(person),gender:studentGender(person),category:event.category||result.category||'General',eventName:event.name||result.eventName||result.eventId,awardLabel:award.label,photoData:person.photoData||person.photo||'',audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
+        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const audience=personType(id);if(audience!==currentTalentAudience)return;const person=winnerProfile(id,result);if(!person||result.type==='Group')return;rows.push({id:person.id||id,name:person.name||person.fullName||id,team:person.team||'',chestNo:person.chestNo||'',className:personClass(person),gender:studentGender(person),category:event.category||result.category||'General',eventName:event.name||result.eventName||result.eventId,awardLabel:award.label,audience,score:Number(award.value||0),awardType:award.awardType});}));});return rows;};
         const renderTalent = () => {
             const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=Math.max(1,Math.min(50,Number(cfg.topCount||3))),fields=cfg.cardFields||{},audienceCfg=cfg.audiences?.[currentTalentAudience]||{},allRows=talentPerformanceRows(),genders=[...new Set(allRows.map(row=>row.gender).filter(Boolean))],rows=currentTalentGender==='all'?allRows:allRows.filter(row=>row.gender===currentTalentGender),groups=new Map();
             if(audienceCfg.enabled===false){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white py-12 text-center text-slate-400">Top Talent is disabled for this audience.</div>';return;}
@@ -1546,8 +1596,17 @@
                         processData();
                     }
                 });
-                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
-                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
+                const refreshPublicPeople = async () => {
+                    try {
+                        [students, participants] = await Promise.all([
+                            fetchPublicCollectionFields('students', ['name','team','category','gender','chestNo','details']),
+                            /* replaces heavy collection(db, "participants") listener */ fetchPublicCollectionFields('participants', ['name','fullName','participantName','team','category','gender','participantType','sourceType','chestNo','details'])
+                        ]);
+                        processData();
+                    } catch(error) { console.warn('Public people summary unavailable.', error); }
+                };
+                refreshPublicPeople();
+                window.setInterval(refreshPublicPeople, 30000);
                 onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
                 onSnapshot(query(collection(db, "results"), where("status", "==", "published")), s => { results = s.docs.map(d=>({eventId:d.id, ...d.data()})); processData(); });
                 onSnapshot(query(collection(db, "posterCertificateModels"),where('status','==','published'),where('downloadAccess.publicResults','==',true)), s => { templates = s.docs.map(d=>({id:d.id,...d.data()})); renderResults(); },error=>console.warn('Public poster and certificate models unavailable',error));

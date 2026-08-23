@@ -459,6 +459,7 @@
 
     <script type="module">
         import { db, auth } from './firebase-config.js';
+        import { fetchPublicCollectionFields } from './public-data-utils.js';
         import { eventContributesToTeamScore, normalizeFestSetup, scheduleEnabled } from './fest-config.js';
         import { normalizeBranding, brandingName, cacheBranding, clearBrandingCache, currentYear, applyBase64Image } from './branding-config.js';
         import { collection, onSnapshot, doc, getDoc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
@@ -940,8 +941,17 @@
                 initIcons();
                 onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); teams = data.teams || []; categories = data.categories || []; teamColors = data.teamColors || {}; teamDisplayNames = data.teamDisplayNames || {}; categoryDisplayNames = data.categoryDisplayNames || {}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestCapabilities(); processData(); } });
                 onSnapshot(doc(db, "settings", "public_config"), d => { publicConfig = d.exists() ? d.data() : {}; processData(); }, error => { console.warn('Public page configuration unavailable; using defaults.', error); publicConfig = {}; processData(); });
-                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
-                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
+                const refreshPublicPeople = async () => {
+                    try {
+                        [students, participants] = await Promise.all([
+                            fetchPublicCollectionFields('students', ['name','team','category','gender','chestNo','details']),
+                            /* replaces heavy collection(db, "participants") listener */ fetchPublicCollectionFields('participants', ['name','fullName','participantName','team','category','gender','participantType','sourceType','chestNo','details'])
+                        ]);
+                        processData();
+                    } catch(error) { console.warn('Public people summary unavailable.', error); }
+                };
+                refreshPublicPeople();
+                window.setInterval(refreshPublicPeople, 30000);
                 onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
                 onSnapshot(collection(db, "publicJudgingStatuses"), s => { publicJudgingStatuses = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); }, error => { console.warn('Public judging statuses unavailable; schedule will continue without completion markers.', error); publicJudgingStatuses = []; processData(); });
                 onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
