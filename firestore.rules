@@ -164,7 +164,7 @@ service cloud.firestore {
     match /students/{studentId} {
       allow read: if true;
       allow create, update: if isAdmin()
-        && hasOnly(['name', 'team', 'category', 'gender', 'chestNo', 'photoData', 'details', 'importedAt', 'updatedAt'])
+        && hasOnly(['name', 'team', 'category', 'gender', 'chestNo', 'photoData', 'details', 'importedAt', 'updatedAt', 'showPhotoInResults'])
         && request.resource.data.name is string
         && request.resource.data.team is string
         && isStringOrMissing('category')
@@ -178,6 +178,7 @@ service cloud.firestore {
         && (!('details' in request.resource.data) || request.resource.data.details is map)
         && (!('importedAt' in request.resource.data) || request.resource.data.importedAt is number)
         && isNumberOrMissing('updatedAt')
+        && isBoolOrMissing('showPhotoInResults')
         && (!('photoData' in request.resource.data)
           || (request.resource.data.photoData is string
             && request.resource.data.photoData.size() <= 280000
@@ -188,12 +189,20 @@ service cloud.firestore {
         && (request.resource.data.photoData == '' || request.resource.data.photoData.matches('data:image/(jpeg|png|webp|gif);base64,.*'))
         && request.resource.data.photoUpdatedAt is number
         && request.resource.data.photoUpdatedBy == 'registration_portal';
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['showPhotoInResults', 'resultsPhotoPreferenceUpdatedAt', 'resultsPhotoPreferenceUpdatedBy'])
+        && request.resource.data.showPhotoInResults is bool
+        && request.resource.data.resultsPhotoPreferenceUpdatedAt is number
+        && request.resource.data.resultsPhotoPreferenceUpdatedBy == 'registration_portal';
       allow delete: if isAdmin();
     }
 
     match /participants/{participantId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['showPhotoInResults', 'resultsPhotoPreferenceUpdatedAt', 'resultsPhotoPreferenceUpdatedBy'])
+        && request.resource.data.showPhotoInResults is bool
+        && request.resource.data.resultsPhotoPreferenceUpdatedAt is number
+        && request.resource.data.resultsPhotoPreferenceUpdatedBy == 'registration_portal';
     }
 
     match /registrationRequests/{requestId} {
