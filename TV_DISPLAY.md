@@ -2,7 +2,7 @@
 
 ## Runtime flow
 
-The TV remains subscribed to festival configuration, people, events and results. When TV Control is sent in Results sequence mode, it resolves the saved programme IDs into an in-memory presentation queue in the saved order. This ensures the selected programmes—not every published result—are shown. Other display modes leave the result queue inactive.
+The TV remains subscribed to festival configuration, people, events and results. When TV Control is sent in Results sequence mode, it resolves the saved programme IDs into an in-memory presentation queue in the saved order. The control list uses the same `status == published` result feed as the public Results page, ensuring that only publicly published programmes—not ready, archived or hidden results—can be selected and shown. Other display modes leave the result queue inactive.
 
 Each queued result runs through a full-screen scene sequence: a six-second programme-name and details introduction, Third–Second–First position reveals, then a final podium with Second on the left, First in the centre and Third on the right. Every selected result runs through this sequence in order, then the display returns directly to its normal dashboard. A small badge reports the current result number and batch size.
 
