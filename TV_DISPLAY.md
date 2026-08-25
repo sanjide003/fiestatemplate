@@ -12,7 +12,7 @@ Dashboard HTML is updated only when its content hash changes and no live scene i
 
 TV Display Settings controls the live title and ticker, multi-line announcements, and the result interruption policy. Programme, winner reveal, final podium and media holds use fixed readable defaults, so operators do not need to configure seconds for individual scenes. `Immediate` starts the selected queue at once, while `After current media` waits for the default media interval. A results sequence plays only the programmes selected in TV Control and in the selected order; Video only, Media wall and Dashboard auto do not start a result queue.
 
-Administrators can continue to control background colour/image/video and independently enable Results, Leaderboard, Announcements and Media. Photo uploads and a list of video URLs form the rotating media playlist.
+Administrators can continue to control background colour/image/video and independently enable Results, Leaderboard, Announcements and Media. Photo uploads and a list of video URLs form the rotating media playlist. A single Video & media URL loops continuously; when multiple URLs are provided, the TV advances to the next URL in the saved list as each video finishes.
 
 ## Remaining production enhancements
 
