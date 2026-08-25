@@ -2,17 +2,17 @@
 
 ## Runtime flow
 
-The TV remains subscribed to festival configuration, people, events and results. Its result listener now detects only newly published result documents after the initial snapshot and adds them to an in-memory presentation queue. Results published together are absorbed into the active batch instead of rebuilding or flashing the entire dashboard.
+The TV remains subscribed to festival configuration, people, events and results. When TV Control is sent in Results sequence mode, it resolves the saved programme IDs into an in-memory presentation queue in the saved order. The control list uses the same `status == published` result feed as the public Results page, ensuring that only publicly published programmes—not ready, archived or hidden results—can be selected and shown. Other display modes leave the result queue inactive.
 
-Each queued result runs through a full-screen scene sequence: publication intro, reverse-order position reveals, winner/team names and awarded points. After every result in the batch has been shown, the previous team totals animate to the new totals and the ranked leaderboard remains on screen for the configured hold period. The display then returns to its normal dashboard. A small badge reports the current result number and batch size.
+Each queued result runs through a full-screen scene sequence: a six-second programme-name and details introduction, Third–Second–First position reveals, then a final podium with Second on the left, First in the centre and Third on the right. Every selected result runs through this sequence in order, then the display returns directly to its normal dashboard. A small badge reports the current result number and batch size.
 
 Dashboard HTML is updated only when its content hash changes and no live scene is active. This avoids the old five-second complete-grid repaint. The clock updates independently, while a self-adjusting media timer rotates announcements, uploaded photo slides and muted playlist video URLs.
 
 ## Admin controls
 
-TV Display Settings controls the live title and ticker; multi-line announcements; result hold, winner reveal, leaderboard hold and media rotation durations; and the result interruption policy. `Immediate` starts a fresh queue at once, while `After current media` waits for the configured media interval. Results arriving while a sequence is running join that same batch before the final team-points animation.
+TV Display Settings controls the live title and ticker, multi-line announcements, and the result interruption policy. Programme, winner reveal, final podium and media holds use fixed readable defaults, so operators do not need to configure seconds for individual scenes. `Immediate` starts the selected queue at once, while `After current media` waits for the default media interval. A results sequence plays only the programmes selected in TV Control and in the selected order; Video only, Media wall and Dashboard auto do not start a result queue.
 
-Administrators can continue to control background colour/image/video and independently enable Results, Leaderboard, Announcements and Media. Photo uploads and a list of video URLs form the rotating media playlist.
+Administrators can continue to control background colour/image/video and independently enable Results, Leaderboard, Announcements and Media. Photo uploads and a list of video URLs form the rotating media playlist. A single Video & media URL loops continuously; when multiple URLs are provided, the TV advances to the next URL in the saved list as each video finishes.
 
 ## Remaining production enhancements
 

@@ -1291,10 +1291,6 @@ window.renderPublicContentForm = () => {
     setPublicField('public-tv-title', tvConfig.title || 'FEST LIVE');
     setPublicField('public-tv-ticker', tvConfig.ticker || 'Welcome to Fest Live • Results • Updates');
     setPublicField('public-tv-announcements', publicLines(tvConfig.announcements));
-    setPublicField('public-tv-result-seconds', String(tvConfig.timing?.resultSeconds || 8));
-    setPublicField('public-tv-reveal-seconds', String(tvConfig.timing?.revealSeconds || 2));
-    setPublicField('public-tv-leaderboard-seconds', String(tvConfig.timing?.leaderboardSeconds || 10));
-    setPublicField('public-tv-slide-seconds', String(tvConfig.timing?.slideSeconds || 7));
     setPublicField('public-tv-interrupt-policy', tvConfig.interruptPolicy || 'after-current');
     setPublicField('public-tv-bg-color', tvBackground.color || '#020617');
     const tvBackgroundImageSources = splitMediaSources(tvBackground.imageUrl || '');
@@ -1322,7 +1318,6 @@ const buildTVDisplayConfigFromForm = () => {
         ticker: value('public-tv-ticker'),
         announcements: readPublicLines('public-tv-announcements'),
         interruptPolicy: value('public-tv-interrupt-policy') || 'after-current',
-        timing: { resultSeconds:Number(value('public-tv-result-seconds')||8), revealSeconds:Number(value('public-tv-reveal-seconds')||2), leaderboardSeconds:Number(value('public-tv-leaderboard-seconds')||10), slideSeconds:Number(value('public-tv-slide-seconds')||7) },
         show: {
             results: checked('public-tv-show-results'),
             leaderboard: checked('public-tv-show-leaderboard'),
