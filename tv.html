@@ -15,10 +15,9 @@
     .ticker { animation: ticker 26s linear infinite; }
     .fullscreen-shell:fullscreen { background:#020617; }
     .fullscreen-shell:-webkit-full-screen { background:#020617; }
-    .fullscreen-control { transition: opacity .2s ease, transform .2s ease; }
+    .fullscreen-control { opacity:0; pointer-events:none; transform:translate(-50%,-10px); transition: opacity .2s ease, transform .2s ease; }
+    .fullscreen-control-zone:hover .fullscreen-control, .fullscreen-control-zone:focus-within .fullscreen-control { opacity:1; pointer-events:auto; transform:translate(-50%,0); }
     .fullscreen-control[data-active="true"] { background: rgba(16,185,129,.9); }
-    .fullscreen-shell:fullscreen .fullscreen-control { opacity:.22; }
-    .fullscreen-shell:fullscreen .fullscreen-control:hover, .fullscreen-shell:fullscreen .fullscreen-control:focus-visible { opacity:1; transform:scale(1.03); }
     @keyframes sceneIn{from{opacity:0;transform:scale(.97) translateY(24px)}to{opacity:1;transform:none}}@keyframes spotlight{from{opacity:0;filter:blur(12px);transform:scale(1.1)}to{opacity:1;filter:none;transform:none}}@keyframes tickerRise{from{opacity:0;transform:translateY(80px)}to{opacity:1;transform:none}}@keyframes confettiPop{0%{opacity:0;transform:scale(.6) rotate(-3deg)}70%{transform:scale(1.04) rotate(1deg)}100%{opacity:1;transform:none}}@keyframes scorePulse{50%{transform:scale(1.08);color:#fde047}}.scene-in{animation:sceneIn .55s ease-out both}.scene-spotlight{animation:spotlight .75s ease-out both}.scene-ticker-rise{animation:tickerRise .65s cubic-bezier(.2,.9,.2,1) both}.scene-confetti{animation:confettiPop .8s ease-out both}.score-pulse{animation:scorePulse .7s ease-in-out}.glass { background: rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.16); backdrop-filter: blur(10px); }
   </style>
 </head>
@@ -46,8 +45,8 @@
     </footer>
   </main>
 
-  <button id="fullscreen-toggle" type="button" class="fullscreen-control fixed left-1/2 top-3 z-[70] -translate-x-1/2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-3 text-sm font-black uppercase tracking-wide text-white shadow-2xl backdrop-blur" aria-pressed="false" title="Hide browser bars while casting to TV">⛶ Full Screen</button>
-  <div id="fullscreen-hint" class="pointer-events-none fixed left-1/2 top-16 z-[70] hidden -translate-x-1/2 rounded-full bg-amber-400 px-5 py-2 text-sm font-black text-slate-950 shadow-2xl">Allow full screen from the browser prompt</div>
+  <div class="fullscreen-control-zone fixed left-1/2 top-0 z-[70] h-20 w-96 -translate-x-1/2" aria-label="Fullscreen control area"><button id="fullscreen-toggle" type="button" class="fullscreen-control absolute left-1/2 top-3 rounded-full border border-white/20 bg-slate-950/80 px-5 py-3 text-sm font-black uppercase tracking-wide text-white shadow-2xl backdrop-blur" aria-pressed="false" title="Move the mouse to the top center, then click to hide browser bars while casting to TV">⛶ Full Screen</button></div>
+  <div id="fullscreen-hint" class="pointer-events-none fixed left-1/2 top-20 z-[70] hidden -translate-x-1/2 rounded-full bg-amber-400 px-5 py-2 text-sm font-black text-slate-950 shadow-2xl">Allow full screen from the browser prompt</div>
   </div>
 
   <script type="module">
