@@ -296,11 +296,12 @@
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] animate-fade-in relative overflow-hidden">
                 <div class="p-4 bg-gradient-to-br from-indigo-600 to-violet-700 text-white shrink-0 flex justify-between items-center">
                     <div><h3 class="text-lg font-black leading-none">Result Simulation</h3><p id="sim-modal-summary" class="text-indigo-200 text-xs font-medium mt-1">Projected team standing after selected results</p></div>
-                    <div class="flex items-center gap-2"><button onclick="downloadSimulationPdf()" class="rounded-lg bg-white/15 px-3 py-1.5 text-[10px] font-black uppercase text-white transition hover:bg-white/25"><i data-lucide="file-down" class="mr-1 inline h-3.5 w-3.5"></i> PDF</button><button onclick="closeSimModal()" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition" aria-label="Close simulation"><i data-lucide="x" class="w-4 h-4"></i></button></div>
+                    <button onclick="closeSimModal()" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition" aria-label="Close simulation"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="flex-1 overflow-y-auto p-0"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-slate-500 font-bold uppercase sticky top-0 z-10 shadow-sm"><tr><th class="px-4 py-3">Team</th><th class="px-4 py-3 text-center">Current</th><th class="px-4 py-3 text-center">Adding</th><th class="px-4 py-3 text-right">New Total</th></tr></thead><tbody id="sim-modal-table-body" class="divide-y divide-slate-100 font-medium"></tbody></table></div>
-                <div class="sticky bottom-0 grid grid-cols-2 gap-3 border-t border-indigo-100 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+                <div class="sticky bottom-0 grid grid-cols-1 gap-2 border-t border-indigo-100 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] sm:grid-cols-3">
                     <button onclick="closeSimModal()" class="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-red-500/20 hover:bg-red-700"><i data-lucide="x-circle" class="mr-1 inline h-4 w-4"></i> Cancel</button>
+                    <button onclick="downloadSimulationPdf()" class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700" title="Download simulation PDF"><i data-lucide="file-down" class="mr-1 inline h-4 w-4"></i> Download PDF</button>
                     <button onclick="publishSelected()" class="rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-green-500/20 hover:bg-green-700"><i data-lucide="check-check" class="mr-1 inline h-4 w-4"></i> Publish All</button>
                 </div>
             </div>
@@ -405,11 +406,12 @@
                 <div id="sim-expanded-panel" class="hidden h-full w-full flex-col overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl">
                     <div id="sim-panel-header" class="flex shrink-0 cursor-grab items-center justify-between gap-2 bg-gradient-to-br from-indigo-600 to-violet-700 px-2.5 py-2 text-white">
                         <div class="min-w-0"><h3 class="text-xs font-black leading-none">Result Simulation</h3><p id="sim-summary" class="mt-0.5 truncate text-[9px] font-medium text-indigo-200">Projected team standing after selected results</p></div>
-                        <div class="flex shrink-0 items-center gap-1.5"><button onclick="downloadSimulationPdf()" class="rounded-md bg-white/15 px-2 py-1 text-[9px] font-black uppercase text-white hover:bg-white/25" title="Download simulation PDF"><i data-lucide="file-down" class="inline h-3 w-3"></i></button><span id="sim-expanded-count" class="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-black uppercase text-white">0 Selected</span></div>
+                        <span id="sim-expanded-count" class="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-black uppercase text-white">0 Selected</span>
                     </div>
                     <div id="sim-table-scroll" class="min-h-0 flex-1 overflow-y-auto"><table class="w-full text-left text-[10px]"><thead class="sticky top-0 z-10 bg-slate-50 font-bold uppercase text-slate-500 shadow-sm"><tr><th class="px-2 py-1.5">Team</th><th class="px-1.5 py-1.5 text-center">Current</th><th class="px-1.5 py-1.5 text-center">Adding</th><th class="px-2 py-1.5 text-right">New Total</th></tr></thead><tbody id="sim-table-body" class="divide-y divide-slate-100 font-medium"></tbody></table></div>
-                    <div class="grid shrink-0 grid-cols-2 gap-1.5 border-t border-indigo-100 bg-white p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+                    <div class="grid shrink-0 grid-cols-1 gap-1.5 border-t border-indigo-100 bg-white p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] sm:grid-cols-3">
                         <button onclick="closeSimModal()" class="rounded-md bg-red-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-red-500/20 hover:bg-red-700"><i data-lucide="x-circle" class="mr-0.5 inline h-3 w-3"></i> Collapse</button>
+                        <button onclick="downloadSimulationPdf()" class="rounded-md bg-indigo-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700" title="Download simulation PDF"><i data-lucide="file-down" class="mr-0.5 inline h-3 w-3"></i> Download PDF</button>
                         <button onclick="publishSelected()" class="rounded-md bg-green-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-green-500/20 hover:bg-green-700"><i data-lucide="check-check" class="mr-0.5 inline h-3 w-3"></i> Publish All</button>
                     </div>
                 </div>
