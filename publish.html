@@ -255,6 +255,7 @@
                         <div onclick="switchTab('publish')" id="nav-publish" class="nav-link hidden cursor-pointer"><i data-lucide="send"></i> Publish</div>
                         <div onclick="switchTab('ready')" id="nav-ready" class="nav-link cursor-pointer"><i data-lucide="badge-check"></i> Ready to Publish</div>
                         <div onclick="switchTab('published')" id="nav-published" class="nav-link cursor-pointer"><i data-lucide="list-checks"></i> Published</div>
+                        <div onclick="switchTab('topScorers')" id="nav-top-scorers" class="nav-link cursor-pointer"><i data-lucide="trophy"></i> Top Scorers</div>
                         <div class="h-px bg-slate-100 my-1"></div>
                         <button onclick="publisherLogout()" class="nav-link danger w-full"><i data-lucide="log-out"></i> Logout</button>
                         <a href="admin.html" class="nav-link danger"><i data-lucide="arrow-left"></i> Exit to Admin</a>
@@ -374,6 +375,15 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- TOP SCORERS VIEW -->
+        <div id="view-top-scorers" class="tab-view hidden max-w-5xl mx-auto space-y-4">
+            <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
+                <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-amber-600">Published individual events only</p><h2 class="text-lg font-black text-slate-900">Top Scorers</h2><p class="mt-1 text-xs font-medium text-slate-500">Filter by category and gender to find the highest-scoring participants.</p></div><div id="top-scorer-summary" class="rounded-xl bg-white px-3 py-2 text-right text-xs font-black text-amber-700 shadow-sm"></div></div>
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
+            </div>
+            <div id="top-scorers-list" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"></div>
         </div>
 
         <!-- LIST VIEW -->
@@ -524,7 +534,7 @@
         const publisherIsAdmin = () => ['admin','superAdmin'].includes(currentPublisher?.role);
         const overridePolicy = () => festSetup.competitionPolicies?.publishedCorrectionMode || 'revision_reversal';
         const canOverrideJudgeSheet = () => overridePolicy() === 'revision_reversal' || (overridePolicy() === 'admin_overwrite' && publisherIsAdmin());
-        const applyFestGenderOptions=()=>['filter-gender','list-filter-gender'].forEach(id=>{const select=document.getElementById(id);if(!select)return;const old=select.value;select.innerHTML='<option value="">Gender: All</option>'+festSetup.allowedGenders.map(gender=>`<option value="${gender}">${gender}</option>`).join('')+(festSetup.allowedGenders.length>1?'<option value="Both">Both</option>':'');if([...festSetup.allowedGenders,'Both'].includes(old))select.value=old;});
+        const applyFestGenderOptions=()=>['filter-gender','list-filter-gender','top-scorer-gender'].forEach(id=>{const select=document.getElementById(id);if(!select)return;const old=select.value;const includeBoth=id!=='top-scorer-gender';select.innerHTML='<option value="">Gender: All</option>'+festSetup.allowedGenders.map(gender=>`<option value="${gender}">${gender}</option>`).join('')+(includeBoth&&festSetup.allowedGenders.length>1?'<option value="Both">Both</option>':'');if([...festSetup.allowedGenders,'Both'].includes(old))select.value=old;});
         let importedJudgeScoreVersion = '';
         let pendingCorrectionReason = '';
         let currentPublisher = null;
@@ -658,6 +668,7 @@
             document.getElementById('fab-sim').classList.add('hidden');
             if (tab === 'dashboard') { document.getElementById('view-dashboard').classList.remove('hidden'); renderPublishDashboard(); }
             else if (tab === 'judgeSheets' || tab === 'publish') { document.getElementById('view-entry').classList.remove('hidden');document.getElementById('entry-form').classList.add('hidden');document.getElementById('entry-empty').classList.remove('hidden');populateEvents();renderPendingList(); }
+            else if (tab === 'topScorers') { document.getElementById('view-top-scorers').classList.remove('hidden'); renderTopScorers(); }
             else { document.getElementById('view-list').classList.remove('hidden'); renderCurrentList(); }
 
             closeMenu();
@@ -668,7 +679,8 @@
             if(tab === 'publish') document.getElementById('nav-publish').classList.add('active');
             if(tab === 'ready') document.getElementById('nav-ready').classList.add('active');
             if(tab === 'published') document.getElementById('nav-published').classList.add('active');
-            document.getElementById('page-title').innerText = { dashboard:'Publishing Dashboard', judgeSheets:'Judge Submitted Sheets', publish:'Direct Result Publishing', ready:'Ready to Publish', published:'Published Results' }[tab];
+            if(tab === 'topScorers') document.getElementById('nav-top-scorers').classList.add('active');
+            document.getElementById('page-title').innerText = { dashboard:'Publishing Dashboard', judgeSheets:'Judge Submitted Sheets', publish:'Direct Result Publishing', ready:'Ready to Publish', published:'Published Results', topScorers:'Individual Top Scorers' }[tab];
             document.getElementById('queue-section-title').textContent=tab==='publish'?'Direct Result Entry':'Submitted Judge Sheets for Publication';
             document.getElementById('judge-sheet-table-section')?.classList.toggle('hidden',tab==='publish'&&publisherEditMode);
             window.applyPublishingWorkflow();
@@ -692,11 +704,14 @@
         };
 
         window.renderDropdowns = () => {
-            const catSelect = document.getElementById('filter-cat'); const listCatSelect = document.getElementById('list-filter-cat');
-            const catOpts = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            const catSelect = document.getElementById('filter-cat'); const listCatSelect = document.getElementById('list-filter-cat'); const topScorerCategory = document.getElementById('top-scorer-category');
+            const selectedTopScorerCategory = topScorerCategory?.value || '';
+            const knownCategories = [...new Set([...categories, ...events.map(event => event.category).filter(Boolean)])];
+            const catOpts = knownCategories.map(c => `<option value="${html(c)}">${html(c)}</option>`).join('');
             const openOpt = '<option value="General" class="font-bold text-blue-600">General</option>';
             catSelect.innerHTML = '<option value="">All Categories</option>' + openOpt + catOpts;
             listCatSelect.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts;
+            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts; if([...knownCategories,'General'].includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
             populateJudgeFilter();
         };
         const populateJudgeFilter = () => {
@@ -1028,6 +1043,36 @@
             lucide.createIcons();
         };
 
+        window.renderTopScorers = () => {
+            const categoryFilter = document.getElementById('top-scorer-category')?.value || '';
+            const genderFilter = document.getElementById('top-scorer-gender')?.value || '';
+            const search = (document.getElementById('top-scorer-search')?.value || '').trim().toLowerCase();
+            const scorerMap = new Map();
+            results.filter(result => (result.status || 'published') === 'published').forEach(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                if((event.type || result.type || 'Single') === 'Group' || (categoryFilter && (event.category || result.category) !== categoryFilter)) return;
+                const addPoints = (winnerId, points) => {
+                    const participant = participantForId(winnerId) || result.winnerDetails?.[winnerId];
+                    if(!participant) return;
+                    const gender = studentGender(participant);
+                    if(genderFilter && gender !== genderFilter) return;
+                    const key = String(winnerId);
+                    const entry = scorerMap.get(key) || { id:key, name:participant.name || participant.fullName || 'Participant', chestNo:participant.chestNo || '—', gender, team:teamDisplayName(participant.team || ''), points:0, events:new Set() };
+                    entry.points += Number(points || 0); entry.events.add(result.eventId); scorerMap.set(key, entry);
+                };
+                const places = Array.isArray(result.places) && result.places.length ? result.places : [['first',result.winners?.first,result.points?.first],['second',result.winners?.second,result.points?.second],['third',result.winners?.third,result.points?.third]].map(([,winners,value]) => ({winners:Array.isArray(winners)?winners:(winners?[winners]:[]),value}));
+                places.forEach(place => (place.winners || []).forEach(winnerId => addPoints(winnerId, place.earnedValue ?? place.value ?? 0)));
+                (result.gradeAwards || []).forEach(award => (award.winners || []).forEach(winnerId => addPoints(winnerId, award.value || 0)));
+            });
+            const scorers = [...scorerMap.values()].filter(scorer => !search || `${scorer.name} ${scorer.chestNo} ${scorer.team}`.toLowerCase().includes(search)).sort((a,b) => b.points - a.points || b.events.size - a.events.size || a.name.localeCompare(b.name));
+            const host = document.getElementById('top-scorers-list'); const summary = document.getElementById('top-scorer-summary');
+            if(summary) summary.textContent = `${scorers.length} scorer${scorers.length === 1 ? '' : 's'} found`;
+            if(!host) return;
+            if(!scorers.length) { host.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">No published individual-event scorers match these filters.</div>'; return; }
+            host.innerHTML = scorers.map((scorer,index) => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300"><div class="flex items-start justify-between gap-3"><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-sm font-black text-amber-700">#${index + 1}</span><div class="text-right"><p class="text-[10px] font-black uppercase tracking-wide text-slate-400">Total points</p><p class="text-2xl font-black text-amber-600">${scorer.points}</p></div></div><h3 class="mt-4 truncate text-base font-black text-slate-900">${html(scorer.name)}</h3><p class="mt-1 text-xs font-bold text-slate-500">Chest No: ${html(scorer.chestNo)} &bull; ${html(scorer.gender)}</p><div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">${html(scorer.team)}</span><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">${scorer.events.size} individual event${scorer.events.size === 1 ? '' : 's'}</span></div></article>`).join('');
+            lucide.createIcons();
+        };
+
         window.renderCurrentList = () => {
             const isReady = currentTab === 'ready';document.getElementById('list-title').textContent=isReady?'Ready to Publish':'Published / Archived Results';
             const list = document.getElementById('results-list'); const catFilter = document.getElementById('list-filter-cat').value; const stageFilter = document.getElementById('list-filter-stage').value; const genderFilter = document.getElementById('list-filter-gender').value; const statusFilter = document.getElementById('list-filter-status')?.value || ''; const search = document.getElementById('list-search').value.toLowerCase(); document.getElementById('list-filter-status')?.classList.toggle('hidden', isReady);
@@ -1348,13 +1393,13 @@
                     document.getElementById('loader-screen').style.display = 'none';
                 }
 
-                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
+                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); if(currentTab === 'topScorers') renderTopScorers(); } });
                 onSnapshot(doc(db, "settings", "scoring_rules"), d => { scoringRules = d.exists() ? d.data() : {}; if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
-                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
-                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
-                onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); openRequestedJudgeSheet(); });
-                onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) renderPendingList(); else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); });
-                onSnapshot(collection(db, "results"), s => { results = s.docs.map(d=>({eventId:d.id,...d.data()})); pruneReadySelections(); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); });
+                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
+                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); if(currentTab === 'topScorers') renderTopScorers(); });
+                onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); openRequestedJudgeSheet(); });
+                onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) renderPendingList(); else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); });
+                onSnapshot(collection(db, "results"), s => { results = s.docs.map(d=>({eventId:d.id,...d.data()})); pruneReadySelections(); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); });
                 onSnapshot(collection(db, "judgeScores"), s => { const selectedId=currentJudgeScore?.id||'';judgeScores = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,selectedId); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); openRequestedJudgeSheet(); });
                 onSnapshot(collection(db, "judgeAssignments"), s => { judgeAssignments = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } if(currentTab === 'dashboard') renderPublishDashboard(); openRequestedJudgeSheet(); });
             } else redirectUnauthorizedPublisher();
