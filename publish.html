@@ -381,7 +381,7 @@
         <div id="view-top-scorers" class="tab-view hidden max-w-5xl mx-auto space-y-4">
             <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-amber-600">Published individual events only</p><h2 class="text-lg font-black text-slate-900">Top Scorers</h2><p class="mt-1 text-xs font-medium text-slate-500">Filter by category and gender to find the highest-scoring participants.</p></div><div id="top-scorer-summary" class="rounded-xl bg-white px-3 py-2 text-right text-xs font-black text-amber-700 shadow-sm"></div></div>
-                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option><option value="__general__">General: Overall individual points</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
             </div>
             <div id="top-scorers-list" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"></div>
         </div>
@@ -711,7 +711,7 @@
             const openOpt = '<option value="General" class="font-bold text-blue-600">General</option>';
             catSelect.innerHTML = '<option value="">All Categories</option>' + openOpt + catOpts;
             listCatSelect.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts;
-            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option><option value="__general__">General: Overall individual points</option>' + catOpts; if([...knownCategories,'__general__'].includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
+            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option>' + catOpts; if(knownCategories.includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
             populateJudgeFilter();
         };
         const populateJudgeFilter = () => {
@@ -1047,25 +1047,37 @@
             const categoryFilter = document.getElementById('top-scorer-category')?.value || '';
             const genderFilter = document.getElementById('top-scorer-gender')?.value || '';
             const search = (document.getElementById('top-scorer-search')?.value || '').trim().toLowerCase();
-            const scorerMap = new Map();
-            const generalSummary = categoryFilter === '__general__';
-            results.filter(result => (result.status || 'published') === 'published').forEach(result => {
+            const publishedIndividualResults = results.filter(result => {
                 const event = events.find(item => item.id === result.eventId) || result;
-                if((event.type || result.type || 'Single') === 'Group' || (categoryFilter && !generalSummary && (event.category || result.category) !== categoryFilter)) return;
-                const addPoints = (winnerId, points) => {
+                return (result.status || 'published') === 'published' && (event.type || result.type || 'Single') !== 'Group';
+            });
+            const awardsForResult = result => {
+                const places = Array.isArray(result.places) && result.places.length ? result.places : [['first',result.winners?.first,result.points?.first],['second',result.winners?.second,result.points?.second],['third',result.winners?.third,result.points?.third]].map(([,winners,value]) => ({winners:Array.isArray(winners)?winners:(winners?[winners]:[]),value}));
+                return [...places.flatMap(place => (place.winners || []).map(winnerId => ({winnerId,points:Number(place.earnedValue ?? place.value ?? 0)}))), ...(result.gradeAwards || []).flatMap(award => (award.winners || []).map(winnerId => ({winnerId,points:Number(award.value || 0)})))];
+            };
+            // A category identifies its participants. Their individual General-event
+            // points are included as well, but General is not exposed as a filter.
+            const categoryParticipantIds = new Set(categoryFilter ? publishedIndividualResults.filter(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                return (event.category || result.category) === categoryFilter;
+            }).flatMap(awardsForResult).map(award => String(award.winnerId)) : []);
+            const scorerMap = new Map();
+            publishedIndividualResults.forEach(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                const eventCategory = event.category || result.category || 'General';
+                if(categoryFilter && eventCategory !== categoryFilter && eventCategory !== 'General') return;
+                awardsForResult(result).forEach(({winnerId,points}) => {
+                    if(categoryFilter && eventCategory === 'General' && !categoryParticipantIds.has(String(winnerId))) return;
                     const participant = participantForId(winnerId) || result.winnerDetails?.[winnerId];
                     if(!participant) return;
                     const gender = studentGender(participant);
                     if(genderFilter && gender !== genderFilter) return;
-                    const key = String(winnerId), awardedPoints = Number(points || 0);
+                    const key = String(winnerId);
                     const entry = scorerMap.get(key) || { id:key, name:participant.name || participant.fullName || 'Participant', chestNo:participant.chestNo || '—', gender, team:teamDisplayName(participant.team || ''), points:0, events:new Set(), eventScores:new Map() };
-                    entry.points += awardedPoints; entry.events.add(result.eventId);
-                    const eventScore = entry.eventScores.get(result.eventId) || { name:event.name || result.eventName || 'Event', category:event.category || result.category || 'General', points:0 };
-                    eventScore.points += awardedPoints; entry.eventScores.set(result.eventId,eventScore); scorerMap.set(key, entry);
-                };
-                const places = Array.isArray(result.places) && result.places.length ? result.places : [['first',result.winners?.first,result.points?.first],['second',result.winners?.second,result.points?.second],['third',result.winners?.third,result.points?.third]].map(([,winners,value]) => ({winners:Array.isArray(winners)?winners:(winners?[winners]:[]),value}));
-                places.forEach(place => (place.winners || []).forEach(winnerId => addPoints(winnerId, place.earnedValue ?? place.value ?? 0)));
-                (result.gradeAwards || []).forEach(award => (award.winners || []).forEach(winnerId => addPoints(winnerId, award.value || 0)));
+                    entry.points += points; entry.events.add(result.eventId);
+                    const eventScore = entry.eventScores.get(result.eventId) || { name:event.name || result.eventName || 'Event', category:eventCategory, points:0 };
+                    eventScore.points += points; entry.eventScores.set(result.eventId,eventScore); scorerMap.set(key, entry);
+                });
             });
             const scorers = [...scorerMap.values()].filter(scorer => !search || `${scorer.name} ${scorer.chestNo} ${scorer.team}`.toLowerCase().includes(search)).sort((a,b) => b.points - a.points || b.events.size - a.events.size || a.name.localeCompare(b.name));
             const host = document.getElementById('top-scorers-list'); const summary = document.getElementById('top-scorer-summary');
