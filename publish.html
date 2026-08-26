@@ -255,6 +255,7 @@
                         <div onclick="switchTab('publish')" id="nav-publish" class="nav-link hidden cursor-pointer"><i data-lucide="send"></i> Publish</div>
                         <div onclick="switchTab('ready')" id="nav-ready" class="nav-link cursor-pointer"><i data-lucide="badge-check"></i> Ready to Publish</div>
                         <div onclick="switchTab('published')" id="nav-published" class="nav-link cursor-pointer"><i data-lucide="list-checks"></i> Published</div>
+                        <div onclick="switchTab('topScorers')" id="nav-top-scorers" class="nav-link cursor-pointer"><i data-lucide="trophy"></i> Top Scorers</div>
                         <div class="h-px bg-slate-100 my-1"></div>
                         <button onclick="publisherLogout()" class="nav-link danger w-full"><i data-lucide="log-out"></i> Logout</button>
                         <a href="admin.html" class="nav-link danger"><i data-lucide="arrow-left"></i> Exit to Admin</a>
@@ -296,11 +297,12 @@
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] animate-fade-in relative overflow-hidden">
                 <div class="p-4 bg-gradient-to-br from-indigo-600 to-violet-700 text-white shrink-0 flex justify-between items-center">
                     <div><h3 class="text-lg font-black leading-none">Result Simulation</h3><p id="sim-modal-summary" class="text-indigo-200 text-xs font-medium mt-1">Projected team standing after selected results</p></div>
-                    <div class="flex items-center gap-2"><button onclick="downloadSimulationPdf()" class="rounded-lg bg-white/15 px-3 py-1.5 text-[10px] font-black uppercase text-white transition hover:bg-white/25"><i data-lucide="file-down" class="mr-1 inline h-3.5 w-3.5"></i> PDF</button><button onclick="closeSimModal()" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition" aria-label="Close simulation"><i data-lucide="x" class="w-4 h-4"></i></button></div>
+                    <button onclick="closeSimModal()" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition" aria-label="Close simulation"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="flex-1 overflow-y-auto p-0"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-slate-500 font-bold uppercase sticky top-0 z-10 shadow-sm"><tr><th class="px-4 py-3">Team</th><th class="px-4 py-3 text-center">Current</th><th class="px-4 py-3 text-center">Adding</th><th class="px-4 py-3 text-right">New Total</th></tr></thead><tbody id="sim-modal-table-body" class="divide-y divide-slate-100 font-medium"></tbody></table></div>
-                <div class="sticky bottom-0 grid grid-cols-2 gap-3 border-t border-indigo-100 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+                <div class="sticky bottom-0 grid grid-cols-1 gap-2 border-t border-indigo-100 bg-white p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] sm:grid-cols-3">
                     <button onclick="closeSimModal()" class="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-red-500/20 hover:bg-red-700"><i data-lucide="x-circle" class="mr-1 inline h-4 w-4"></i> Cancel</button>
+                    <button onclick="downloadSimulationPdf()" class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700" title="Download simulation PDF"><i data-lucide="file-down" class="mr-1 inline h-4 w-4"></i> Download PDF</button>
                     <button onclick="publishSelected()" class="rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-green-500/20 hover:bg-green-700"><i data-lucide="check-check" class="mr-1 inline h-4 w-4"></i> Publish All</button>
                 </div>
             </div>
@@ -375,6 +377,15 @@
 
         </div>
 
+        <!-- TOP SCORERS VIEW -->
+        <div id="view-top-scorers" class="tab-view hidden max-w-5xl mx-auto space-y-4">
+            <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
+                <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-amber-600">Published individual events only</p><h2 class="text-lg font-black text-slate-900">Top Scorers</h2><p class="mt-1 text-xs font-medium text-slate-500">Filter by category and gender to find the highest-scoring participants.</p></div><div id="top-scorer-summary" class="rounded-xl bg-white px-3 py-2 text-right text-xs font-black text-amber-700 shadow-sm"></div></div>
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
+            </div>
+            <div id="top-scorers-list" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"></div>
+        </div>
+
         <!-- LIST VIEW -->
         <div id="view-list" class="tab-view hidden max-w-4xl mx-auto space-y-4 relative pb-28">
             <div id="filter-bar" class="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 items-center sticky top-0 z-20">
@@ -405,11 +416,12 @@
                 <div id="sim-expanded-panel" class="hidden h-full w-full flex-col overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl">
                     <div id="sim-panel-header" class="flex shrink-0 cursor-grab items-center justify-between gap-2 bg-gradient-to-br from-indigo-600 to-violet-700 px-2.5 py-2 text-white">
                         <div class="min-w-0"><h3 class="text-xs font-black leading-none">Result Simulation</h3><p id="sim-summary" class="mt-0.5 truncate text-[9px] font-medium text-indigo-200">Projected team standing after selected results</p></div>
-                        <div class="flex shrink-0 items-center gap-1.5"><button onclick="downloadSimulationPdf()" class="rounded-md bg-white/15 px-2 py-1 text-[9px] font-black uppercase text-white hover:bg-white/25" title="Download simulation PDF"><i data-lucide="file-down" class="inline h-3 w-3"></i></button><span id="sim-expanded-count" class="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-black uppercase text-white">0 Selected</span></div>
+                        <span id="sim-expanded-count" class="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-black uppercase text-white">0 Selected</span>
                     </div>
                     <div id="sim-table-scroll" class="min-h-0 flex-1 overflow-y-auto"><table class="w-full text-left text-[10px]"><thead class="sticky top-0 z-10 bg-slate-50 font-bold uppercase text-slate-500 shadow-sm"><tr><th class="px-2 py-1.5">Team</th><th class="px-1.5 py-1.5 text-center">Current</th><th class="px-1.5 py-1.5 text-center">Adding</th><th class="px-2 py-1.5 text-right">New Total</th></tr></thead><tbody id="sim-table-body" class="divide-y divide-slate-100 font-medium"></tbody></table></div>
-                    <div class="grid shrink-0 grid-cols-2 gap-1.5 border-t border-indigo-100 bg-white p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+                    <div class="grid shrink-0 grid-cols-1 gap-1.5 border-t border-indigo-100 bg-white p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] sm:grid-cols-3">
                         <button onclick="closeSimModal()" class="rounded-md bg-red-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-red-500/20 hover:bg-red-700"><i data-lucide="x-circle" class="mr-0.5 inline h-3 w-3"></i> Collapse</button>
+                        <button onclick="downloadSimulationPdf()" class="rounded-md bg-indigo-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700" title="Download simulation PDF"><i data-lucide="file-down" class="mr-0.5 inline h-3 w-3"></i> Download PDF</button>
                         <button onclick="publishSelected()" class="rounded-md bg-green-600 px-2 py-1 text-[10px] font-black text-white shadow-lg shadow-green-500/20 hover:bg-green-700"><i data-lucide="check-check" class="mr-0.5 inline h-3 w-3"></i> Publish All</button>
                     </div>
                 </div>
@@ -522,13 +534,16 @@
         const publisherIsAdmin = () => ['admin','superAdmin'].includes(currentPublisher?.role);
         const overridePolicy = () => festSetup.competitionPolicies?.publishedCorrectionMode || 'revision_reversal';
         const canOverrideJudgeSheet = () => overridePolicy() === 'revision_reversal' || (overridePolicy() === 'admin_overwrite' && publisherIsAdmin());
-        const applyFestGenderOptions=()=>['filter-gender','list-filter-gender'].forEach(id=>{const select=document.getElementById(id);if(!select)return;const old=select.value;select.innerHTML='<option value="">Gender: All</option>'+festSetup.allowedGenders.map(gender=>`<option value="${gender}">${gender}</option>`).join('')+(festSetup.allowedGenders.length>1?'<option value="Both">Both</option>':'');if([...festSetup.allowedGenders,'Both'].includes(old))select.value=old;});
+        const applyFestGenderOptions=()=>['filter-gender','list-filter-gender','top-scorer-gender'].forEach(id=>{const select=document.getElementById(id);if(!select)return;const old=select.value;const includeBoth=id!=='top-scorer-gender';select.innerHTML='<option value="">Gender: All</option>'+festSetup.allowedGenders.map(gender=>`<option value="${gender}">${gender}</option>`).join('')+(includeBoth&&festSetup.allowedGenders.length>1?'<option value="Both">Both</option>':'');if([...festSetup.allowedGenders,'Both'].includes(old))select.value=old;});
         let importedJudgeScoreVersion = '';
         let pendingCorrectionReason = '';
         let currentPublisher = null;
         let publisherEditMode = false;
         let participantOptionsHtml = "";
         let currentTab = 'dashboard';
+        // Keep ready-result selections independent from the rendered cards so filter
+        // changes and real-time list refreshes do not clear the bulk action queue.
+        const selectedReadyResultIds = new Set();
         let homeConfig = {};
         let isSplashDone = false;
         let publisherAuthRedirecting = false;
@@ -653,6 +668,7 @@
             document.getElementById('fab-sim').classList.add('hidden');
             if (tab === 'dashboard') { document.getElementById('view-dashboard').classList.remove('hidden'); renderPublishDashboard(); }
             else if (tab === 'judgeSheets' || tab === 'publish') { document.getElementById('view-entry').classList.remove('hidden');document.getElementById('entry-form').classList.add('hidden');document.getElementById('entry-empty').classList.remove('hidden');populateEvents();renderPendingList(); }
+            else if (tab === 'topScorers') { document.getElementById('view-top-scorers').classList.remove('hidden'); renderTopScorers(); }
             else { document.getElementById('view-list').classList.remove('hidden'); renderCurrentList(); }
 
             closeMenu();
@@ -663,7 +679,8 @@
             if(tab === 'publish') document.getElementById('nav-publish').classList.add('active');
             if(tab === 'ready') document.getElementById('nav-ready').classList.add('active');
             if(tab === 'published') document.getElementById('nav-published').classList.add('active');
-            document.getElementById('page-title').innerText = { dashboard:'Publishing Dashboard', judgeSheets:'Judge Submitted Sheets', publish:'Direct Result Publishing', ready:'Ready to Publish', published:'Published Results' }[tab];
+            if(tab === 'topScorers') document.getElementById('nav-top-scorers').classList.add('active');
+            document.getElementById('page-title').innerText = { dashboard:'Publishing Dashboard', judgeSheets:'Judge Submitted Sheets', publish:'Direct Result Publishing', ready:'Ready to Publish', published:'Published Results', topScorers:'Individual Top Scorers' }[tab];
             document.getElementById('queue-section-title').textContent=tab==='publish'?'Direct Result Entry':'Submitted Judge Sheets for Publication';
             document.getElementById('judge-sheet-table-section')?.classList.toggle('hidden',tab==='publish'&&publisherEditMode);
             window.applyPublishingWorkflow();
@@ -687,11 +704,14 @@
         };
 
         window.renderDropdowns = () => {
-            const catSelect = document.getElementById('filter-cat'); const listCatSelect = document.getElementById('list-filter-cat');
-            const catOpts = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            const catSelect = document.getElementById('filter-cat'); const listCatSelect = document.getElementById('list-filter-cat'); const topScorerCategory = document.getElementById('top-scorer-category');
+            const selectedTopScorerCategory = topScorerCategory?.value || '';
+            const knownCategories = [...new Set([...categories, ...events.map(event => event.category).filter(Boolean)])].filter(category => category !== 'General');
+            const catOpts = knownCategories.map(c => `<option value="${html(c)}">${html(c)}</option>`).join('');
             const openOpt = '<option value="General" class="font-bold text-blue-600">General</option>';
             catSelect.innerHTML = '<option value="">All Categories</option>' + openOpt + catOpts;
             listCatSelect.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts;
+            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option>' + catOpts; if(knownCategories.includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
             populateJudgeFilter();
         };
         const populateJudgeFilter = () => {
@@ -1023,6 +1043,55 @@
             lucide.createIcons();
         };
 
+        window.renderTopScorers = () => {
+            const categoryFilter = document.getElementById('top-scorer-category')?.value || '';
+            const genderFilter = document.getElementById('top-scorer-gender')?.value || '';
+            const search = (document.getElementById('top-scorer-search')?.value || '').trim().toLowerCase();
+            const publishedIndividualResults = results.filter(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                return (result.status || 'published') === 'published' && (event.type || result.type || 'Single') !== 'Group';
+            });
+            const awardsForResult = result => {
+                const places = Array.isArray(result.places) && result.places.length ? result.places : [['first',result.winners?.first,result.points?.first],['second',result.winners?.second,result.points?.second],['third',result.winners?.third,result.points?.third]].map(([,winners,value]) => ({winners:Array.isArray(winners)?winners:(winners?[winners]:[]),value}));
+                return [...places.flatMap(place => (place.winners || []).map(winnerId => ({winnerId,points:Number(place.earnedValue ?? place.value ?? 0)}))), ...(result.gradeAwards || []).flatMap(award => (award.winners || []).map(winnerId => ({winnerId,points:Number(award.value || 0)})))];
+            };
+            // A category identifies its participants. Their individual General-event
+            // points are included as well, but General is not exposed as a filter.
+            const categoryParticipantIds = new Set(categoryFilter ? publishedIndividualResults.filter(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                return (event.category || result.category) === categoryFilter;
+            }).flatMap(awardsForResult).map(award => String(award.winnerId)) : []);
+            const scorerMap = new Map();
+            publishedIndividualResults.forEach(result => {
+                const event = events.find(item => item.id === result.eventId) || result;
+                const eventCategory = event.category || result.category || 'General';
+                if(categoryFilter && eventCategory !== categoryFilter && eventCategory !== 'General') return;
+                awardsForResult(result).forEach(({winnerId,points}) => {
+                    if(categoryFilter && eventCategory === 'General' && !categoryParticipantIds.has(String(winnerId))) return;
+                    const participant = participantForId(winnerId) || result.winnerDetails?.[winnerId];
+                    if(!participant) return;
+                    const gender = studentGender(participant);
+                    if(genderFilter && gender !== genderFilter) return;
+                    const key = String(winnerId);
+                    const entry = scorerMap.get(key) || { id:key, name:participant.name || participant.fullName || 'Participant', chestNo:participant.chestNo || '—', gender, team:teamDisplayName(participant.team || ''), points:0, events:new Set(), eventScores:new Map() };
+                    entry.points += points; entry.events.add(result.eventId);
+                    const eventScore = entry.eventScores.get(result.eventId) || { name:event.name || result.eventName || 'Event', category:eventCategory, points:0 };
+                    eventScore.points += points; entry.eventScores.set(result.eventId,eventScore); scorerMap.set(key, entry);
+                });
+            });
+            const scorers = [...scorerMap.values()].filter(scorer => !search || `${scorer.name} ${scorer.chestNo} ${scorer.team}`.toLowerCase().includes(search)).sort((a,b) => b.points - a.points || b.events.size - a.events.size || a.name.localeCompare(b.name));
+            const host = document.getElementById('top-scorers-list'); const summary = document.getElementById('top-scorer-summary');
+            if(summary) summary.textContent = `${scorers.length} scorer${scorers.length === 1 ? '' : 's'} found`;
+            if(!host) return;
+            if(!scorers.length) { host.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">No published individual-event scorers match these filters.</div>'; return; }
+            host.innerHTML = scorers.map((scorer,index) => {
+                const eventDetails = [...scorer.eventScores.values()].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+                return `<article tabindex="0" role="button" onclick="toggleTopScorerDetails(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTopScorerDetails(this)}" class="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"><div class="flex items-start justify-between gap-3"><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-sm font-black text-amber-700">#${index + 1}</span><div class="text-right"><p class="text-[10px] font-black uppercase tracking-wide text-slate-400">Total points</p><p class="text-2xl font-black text-amber-600">${scorer.points}</p></div></div><h3 class="mt-4 truncate text-base font-black text-slate-900">${html(scorer.name)}</h3><p class="mt-1 text-xs font-bold text-slate-500">Chest No: ${html(scorer.chestNo)} &bull; ${html(scorer.gender)}</p><div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">${html(scorer.team)}</span><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">${scorer.events.size} individual event${scorer.events.size === 1 ? '' : 's'}</span></div><p class="mt-3 text-[10px] font-black text-amber-700">Click to view event points</p><div data-scorer-details class="mt-3 hidden border-t border-slate-100 pt-3">${eventDetails.map(item => `<div class="flex items-center justify-between gap-3 py-1.5 text-xs"><div class="min-w-0"><b class="block truncate text-slate-700">${html(item.name)}</b><span class="text-[10px] font-bold text-slate-400">${html(item.category)}</span></div><span class="shrink-0 rounded-lg bg-amber-50 px-2 py-1 font-black text-amber-700">${item.points} pts</span></div>`).join('')}</div></article>`;
+            }).join('');
+            lucide.createIcons();
+        };
+        window.toggleTopScorerDetails = card => card?.querySelector('[data-scorer-details]')?.classList.toggle('hidden');
+
         window.renderCurrentList = () => {
             const isReady = currentTab === 'ready';document.getElementById('list-title').textContent=isReady?'Ready to Publish':'Published / Archived Results';
             const list = document.getElementById('results-list'); const catFilter = document.getElementById('list-filter-cat').value; const stageFilter = document.getElementById('list-filter-stage').value; const genderFilter = document.getElementById('list-filter-gender').value; const statusFilter = document.getElementById('list-filter-status')?.value || ''; const search = document.getElementById('list-search').value.toLowerCase(); document.getElementById('list-filter-status')?.classList.toggle('hidden', isReady);
@@ -1044,7 +1113,7 @@
                 const awardLines = r.noEligible ? '<div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center font-black uppercase tracking-wide text-slate-400">No one is eligible</div>' : (Array.isArray(r.places) && r.places.length ? r.places.flatMap(p => (p.winners||[]).map(winner=>awardWinnerLine(p.label,winner,p.earnedValue??p.value??0))).join('') : [['1st',r.winners?.first,r.points?.first,'text-yellow-600'],['2nd',r.winners?.second,r.points?.second,'text-slate-500'],['3rd',r.winners?.third,r.points?.third,'text-orange-600']].flatMap(([label,value,points,color])=>(Array.isArray(value)?value:[value]).filter(Boolean).map(winner=>awardWinnerLine(label,winner,points,color))).join('')); 
                 const gradeLines = Array.isArray(r.gradeAwards) && r.gradeAwards.length ? r.gradeAwards.flatMap(g => (g.winners||[]).filter(winner=>!(r.places||[]).some(place=>(place.winners||[]).includes(winner))).map(winner=>awardWinnerLine(`Grade ${g.label}`,winner,0,'text-emerald-600'))).join('') : '';
                 const checkboxHtml = '';
-                const simulationCheck = isReady ? `<label class="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded bg-indigo-50 px-3 py-2 text-[10px] font-black text-indigo-700 hover:bg-indigo-100"><input type="checkbox" class="archive-chk h-4 w-4 rounded border-indigo-300 text-indigo-600" value="${html(r.eventId)}" onchange="updateSimCount(true)" aria-label="Select ${html(name)} for simulation or bulk publish"> Simulation</label>` : '';
+                const simulationCheck = isReady ? `<label class="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded bg-indigo-50 px-3 py-2 text-[10px] font-black text-indigo-700 hover:bg-indigo-100"><input type="checkbox" class="archive-chk h-4 w-4 rounded border-indigo-300 text-indigo-600" value="${html(r.eventId)}" ${selectedReadyResultIds.has(r.eventId) ? 'checked' : ''} onchange="setReadySelection(this.value, this.checked)" aria-label="Select ${html(name)} for simulation or bulk publish"> Simulation</label>` : '';
                 const deleteButton = `<button onclick="deleteResult('${r.eventId}')" class="rounded bg-red-50 px-3 py-2 text-[10px] font-black text-red-600 hover:bg-red-100" title="Delete result and reset event"><i data-lucide="trash-2" class="mr-1 inline h-3.5 w-3.5"></i>Delete</button>`;
                 const actionsHtml = isReady ? `${simulationCheck}<button onclick="publishReadyResult('${r.eventId}')" class="rounded bg-emerald-600 px-3 py-2 text-[10px] font-black text-white" title="Publish ready result"><i data-lucide="send" class="mr-1 inline h-3.5 w-3.5"></i>Publish</button><button onclick="editResult('${r.eventId}')" class="rounded bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-600 hover:bg-blue-100" title="Edit ready result"><i data-lucide="file-pen-line" class="mr-1 inline h-3.5 w-3.5"></i>Edit</button>${deleteButton}` : (archived ? `<button onclick="publishArchivedResult('${r.eventId}')" class="rounded bg-emerald-600 px-3 py-2 text-[10px] font-black text-white" title="Publish archived result again"><i data-lucide="send" class="mr-1 inline h-3.5 w-3.5"></i>Publish</button><button onclick="editResult('${r.eventId}')" class="rounded bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-600 hover:bg-blue-100" title="Edit archived result"><i data-lucide="file-pen-line" class="mr-1 inline h-3.5 w-3.5"></i>Edit</button>${deleteButton}` : `<button onclick="moveToArchive('${r.eventId}')" class="rounded bg-violet-600 px-3 py-2 text-[10px] font-black text-white" title="Archive with reason"><i data-lucide="archive" class="mr-1 inline h-3.5 w-3.5"></i>Archive</button><button onclick="editResult('${r.eventId}')" class="rounded bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-600 hover:bg-blue-100" title="Create correction"><i data-lucide="file-pen-line" class="mr-1 inline h-3.5 w-3.5"></i>Edit</button>${deleteButton}`);
                 return `<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex gap-3 animate-fade-in hover:border-blue-300 transition group">${checkboxHtml}<div class="flex-1 min-w-0"><div class="flex justify-between items-start mb-2"><h4 class="font-bold text-slate-800 text-sm truncate pr-2">${name}</h4><div class="flex gap-1 shrink-0"><span class="text-[10px] font-bold uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">${cat}</span><span class="text-[10px] font-bold uppercase bg-pink-50 text-pink-700 px-2 py-0.5 rounded border border-pink-100">${gender}</span>${statusBadge}</div></div><div class="text-[10px] text-slate-500 space-y-1 mb-2">${awardLines}${gradeLines}</div><div class="flex gap-2 justify-end border-t border-slate-50 pt-1.5 opacity-100 transition-opacity">${actionsHtml}</div></div></div>`;
@@ -1060,19 +1129,31 @@
             ticker.innerHTML = sorted.map((t, i) => `<div class="inline-flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm mx-1"><span class="text-[10px] font-bold ${i===0?'text-green-600':'text-blue-600'}">#${i+1}</span><span class="text-[10px] font-bold text-slate-700">${teamBadge(t[0])}</span><span class="text-[10px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded shadow-sm border border-slate-100">${t[1]}</span></div>`).join('');
         };
 
+        const selectedReadyIds = () => [...selectedReadyResultIds].filter(id => results.some(result => result.eventId === id && isReadyResult(result)));
+        const pruneReadySelections = () => {
+            const readyIds = new Set(results.filter(isReadyResult).map(result => result.eventId));
+            selectedReadyResultIds.forEach(id => { if(!readyIds.has(id)) selectedReadyResultIds.delete(id); });
+        };
+        window.setReadySelection = (id, checked) => {
+            if(checked) selectedReadyResultIds.add(id); else selectedReadyResultIds.delete(id);
+            window.updateSimCount(true);
+        };
         window.toggleAllReadySelections = (checked) => {
+            const readyIds = results.filter(isReadyResult).map(result => result.eventId);
+            readyIds.forEach(id => { if(checked) selectedReadyResultIds.add(id); else selectedReadyResultIds.delete(id); });
             document.querySelectorAll('.archive-chk').forEach(cb => { cb.checked = checked; });
             window.updateSimCount(true);
         };
 
         window.updateSimCount = (autoOpen = false) => {
-            const checks = Array.from(document.querySelectorAll('.archive-chk'));
-            const cnt = checks.filter(cb => cb.checked).length;
+            const selectedIds = selectedReadyIds();
+            const readyCount = results.filter(isReadyResult).length;
+            const cnt = selectedIds.length;
             const badge = document.getElementById('fab-badge');
             const selectAll = document.getElementById('ready-select-all');
             if(selectAll) {
-                selectAll.checked = checks.length > 0 && cnt === checks.length;
-                selectAll.indeterminate = cnt > 0 && cnt < checks.length;
+                selectAll.checked = readyCount > 0 && cnt === readyCount;
+                selectAll.indeterminate = cnt > 0 && cnt < readyCount;
             }
             if(cnt > 0) { badge.classList.remove('hidden'); badge.innerText = cnt; } else { badge.classList.add('hidden'); }
             if(cnt > 0 && (autoOpen || !document.getElementById('sim-expanded-panel')?.classList.contains('hidden'))) window.runSimulation();
@@ -1120,8 +1201,8 @@
         };
 
         const selectedReadySimulationResults = () => {
-            const selectedIds = Array.from(document.querySelectorAll('.archive-chk:checked')).map(cb => cb.value);
-            return results.filter(result => selectedIds.includes(result.eventId) && isReadyResult(result));
+            const selectedIds = new Set(selectedReadyIds());
+            return results.filter(result => selectedIds.has(result.eventId) && isReadyResult(result));
         };
         const resultParticipantRows = result => {
             const event = events.find(item => item.id === result.eventId) || result;
@@ -1153,21 +1234,30 @@
             let host = null;
             try {
                 await ensureHtml2Pdf();
-                const detailRows = selectedReadyResults.flatMap(resultParticipantRows);
-                const teamRows = simulationTeamRows(selectedReadyResults);
+                // Wait for the Malayalam and English web fonts before rasterising the PDF.
+                await document.fonts?.ready;
                 const fest = html([homeConfig.festName1, homeConfig.festName2].filter(Boolean).join(' ') || 'Fest');
                 const generated = html(new Date().toLocaleString());
+                const eventSections = selectedReadyResults.map(result => {
+                    const event = events.find(item => item.id === result.eventId) || result;
+                    const details = [event.category || 'General', eventGender(event), eventStageType(event)].filter(Boolean).map(html).join(' &bull; ');
+                    const people = resultParticipantRows(result).map(row => `<div class="person"><b>${html(row.studentName)}</b><span><strong>Chest No / ചെസ്റ്റ് നമ്പർ:</strong> ${html(row.chestNo)} &nbsp;•&nbsp; <strong>Group / ഗ്രൂപ്പ്:</strong> ${html(row.teamName || '—')}</span><span class="award">${html(row.award)}</span></div>`).join('') || '<p class="empty">No participant details available / പങ്കാളിയുടെ വിവരങ്ങൾ ലഭ്യമല്ല.</p>';
+                    return `<section class="event"><h2>${html(event.name || event.eventName || 'Event')}</h2><p class="event-details"><strong>Programme / പരിപാടി:</strong> ${details || '—'}</p><div class="people">${people}</div></section>`;
+                }).join('');
                 host = document.createElement('div');
-                host.style.cssText='position:fixed;left:-10000px;top:0;background:white;color:#111;width:1120px;padding:24px;font-family:Arial,sans-serif';
-                host.innerHTML = `<div><style>.sim-pdf h1{margin:0;text-align:center;font-size:24px}.sim-pdf .meta{text-align:center;margin:6px 0 16px;font-size:11px;font-weight:700;color:#475569}.sim-pdf table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:18px}.sim-pdf th,.sim-pdf td{border:1px solid #111;padding:5px;vertical-align:top}.sim-pdf th{background:#f1f5f9;text-transform:uppercase;font-size:9px}.sim-pdf .right{text-align:right}.sim-pdf .center{text-align:center}.sim-pdf h2{font-size:14px;margin:16px 0 6px}</style><section class="sim-pdf"><h1>${fest} — Result Simulation</h1><div class="meta">Not published • ${selectedReadyResults.length} selected ready result(s) • Generated: ${generated}</div><h2>Selected Result Details</h2><table><thead><tr><th>Program</th><th>Category</th><th>Gender</th><th>Award</th><th>Chest No</th><th>Student Name</th><th>Team</th><th class="right">Points</th></tr></thead><tbody>${detailRows.map(row=>`<tr><td>${html(row.event.name||row.event.eventName||'Event')}</td><td>${html(row.event.category||'General')}</td><td>${html(eventGender(row.event))}</td><td>${html(row.award)}</td><td class="center">${html(row.chestNo)}</td><td>${html(row.studentName)}</td><td>${html(row.teamName)}</td><td class="right">${Number(row.points||0)}</td></tr>`).join('')}</tbody></table><h2>Team Total Points</h2><table><thead><tr><th>Team</th><th class="right">Current</th><th class="right">Selected Adding</th><th class="right">Total</th></tr></thead><tbody>${teamRows.map(row=>`<tr><td>${html(teamDisplayName(row.team))}</td><td class="right">${row.current}</td><td class="right">${row.adding}</td><td class="right"><b>${row.total}</b></td></tr>`).join('') || '<tr><td colspan="4" class="center">No team points in selected results</td></tr>'}</tbody></table></section></div>`;
+                // html2canvas can produce an empty canvas for a source positioned far off-screen.
+                // Keep the printable source in the document's renderable area, below the viewport.
+                const renderTop = Math.max(document.documentElement.scrollHeight, window.scrollY + window.innerHeight) + 24;
+                host.style.cssText=`position:absolute;left:0;top:${renderTop}px;background:#fff;color:#111;width:760px;padding:32px;font-family:'Noto Sans Malayalam','Inter',Arial,sans-serif;pointer-events:none`;
+                host.innerHTML = `<section class="sim-pdf"><style>.sim-pdf{font-family:'Noto Sans Malayalam','Inter',Arial,sans-serif}.sim-pdf h1{margin:0;text-align:center;font-size:22px;font-weight:800}.sim-pdf .subtitle,.sim-pdf .generated{text-align:center;color:#475569;font-size:11px;margin:6px 0}.sim-pdf .generated{margin-bottom:20px}.sim-pdf .event{break-inside:avoid;page-break-inside:avoid;border:1px solid #dbe3ef;border-radius:10px;margin:0 0 12px;padding:14px}.sim-pdf h2{margin:0 0 5px;font-size:15px;color:#1e3a8a}.sim-pdf .event-details{margin:0 0 10px;color:#475569;font-size:10px}.sim-pdf .people{display:grid;gap:7px}.sim-pdf .person{border-top:1px solid #e5e7eb;padding-top:7px;font-size:10px}.sim-pdf .person b{display:block;font-size:11px;color:#0f172a}.sim-pdf .person strong{color:#475569}.sim-pdf .award{display:block;margin-top:2px;color:#4338ca;font-weight:700}.sim-pdf .empty{margin:0;color:#64748b;font-size:10px}</style><h1>${fest}</h1><p class="subtitle">Result Simulation / ഫല സിമുലേഷൻ</p><p class="generated">${selectedReadyResults.length} selected programme(s) / തിരഞ്ഞെടുത്ത പരിപാടികൾ: ${generated}</p>${eventSections}</section>`;
                 document.body.appendChild(host);
-                await window.html2pdf().from(host).set({margin:6,filename:'Result_Simulation.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,backgroundColor:'#ffffff',useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).save();
+                await window.html2pdf().from(host).set({margin:8,filename:'Result_Simulation.pdf',image:{type:'jpeg',quality:1},pagebreak:{mode:['css','legacy']},html2canvas:{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:host.scrollWidth,windowHeight:host.scrollHeight},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).save();
             } catch(error) { console.error(error); window.showToast(error.message || 'Unable to download simulation PDF', 'error'); }
             finally { host?.remove(); }
         };
 
         window.runSimulation = () => {
-            const selectedIds = Array.from(document.querySelectorAll('.archive-chk:checked')).map(cb => cb.value);
+            const selectedIds = selectedReadyIds();
             if(selectedIds.length === 0) return window.showToast('Select items first', 'error');
             const publishedResults = results.filter(r => r.status === 'published' || !r.status);
             const selectedReadyResults = results.filter(r => selectedIds.includes(r.eventId) && isReadyResult(r));
@@ -1192,7 +1282,7 @@
         };
 
         window.publishSelected = async () => {
-            const selectedIds = Array.from(document.querySelectorAll('.archive-chk:checked')).map(cb => cb.value);
+            const selectedIds = selectedReadyIds();
             if(selectedIds.length > 100) return window.showToast('Publish at most 100 results in one atomic batch', 'error');
             if(!selectedIds.length || !window.confirm(`Publish ${selectedIds.length} ready results? This updates results, judge sheets, notifications and audit records atomically.`)) return;
             document.getElementById('app-loader').classList.remove('hide');
@@ -1322,13 +1412,13 @@
                     document.getElementById('loader-screen').style.display = 'none';
                 }
 
-                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); } });
+                onSnapshot(doc(db, "settings", "general"), d => { if(d.exists()) { const data = d.data(); categories=data.categories||[]; teams=data.teams||[]; teamDisplayNames=data.teamDisplayNames||{}; festSetup=normalizeFestSetup(data.festSetup||{}); applyFestGenderOptions(); window.renderDropdowns();window.applyPublishingWorkflow(); populateEvents(); if(currentTab === 'topScorers') renderTopScorers(); } });
                 onSnapshot(doc(db, "settings", "scoring_rules"), d => { scoringRules = d.exists() ? d.data() : {}; if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
-                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
-                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); });
-                onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); openRequestedJudgeSheet(); });
-                onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) renderPendingList(); else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); });
-                onSnapshot(collection(db, "results"), s => { results = s.docs.map(d=>({eventId:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else renderCurrentList(); });
+                onSnapshot(collection(db, "students"), s => { students = s.docs.map(d=>({id:d.id,...d.data()})); if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else if(!['judgeSheets','publish'].includes(currentTab)) renderCurrentList(); });
+                onSnapshot(collection(db, "participants"), s => { participants = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,currentJudgeScore?.id||''); if(currentTab === 'topScorers') renderTopScorers(); });
+                onSnapshot(collection(db, "events"), s => { events = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); openRequestedJudgeSheet(); });
+                onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) renderPendingList(); else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); });
+                onSnapshot(collection(db, "results"), s => { results = s.docs.map(d=>({eventId:d.id,...d.data()})); pruneReadySelections(); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); else if(currentTab === 'topScorers') renderTopScorers(); else renderCurrentList(); });
                 onSnapshot(collection(db, "judgeScores"), s => { const selectedId=currentJudgeScore?.id||'';judgeScores = s.docs.map(d=>({id:d.id,...d.data()})); if(currentEvent) loadEvent(currentEvent.id,selectedId); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } else if(currentTab === 'dashboard') renderPublishDashboard(); openRequestedJudgeSheet(); });
                 onSnapshot(collection(db, "judgeAssignments"), s => { judgeAssignments = s.docs.map(d=>({id:d.id,...d.data()})); if(['judgeSheets','publish'].includes(currentTab)) { populateEvents(); renderPendingList(); } if(currentTab === 'dashboard') renderPublishDashboard(); openRequestedJudgeSheet(); });
             } else redirectUnauthorizedPublisher();
