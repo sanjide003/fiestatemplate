@@ -467,6 +467,7 @@
         const participantForId = id => students.find(s=>s.id===id)||participants.find(item=>item.id===id);
         const registeredIdsForEvent = eventId => registrations.filter(reg=>reg.eventId===eventId).flatMap(reg=>[...(reg.studentIds||[]),...(reg.participantIds||[]),reg.id].filter(Boolean));
         const eventHasEntries = event => registeredIdsForEvent(event.id).length > 0;
+        const publishTabEvents = () => events.slice();
         const chestForStudent = (id) => participantForId(id)?.chestNo || '-';
         const groupRegistrationForWinner = (winnerId) => registrations.find(r => r.id === winnerId) || null;
         const teamDisplayName = (team) => {
@@ -703,9 +704,9 @@
             if(!val) { list.style.display = 'none'; populateEvents(); return; }
 
             // Get current valid events based on status
-            const statusFiltered = events.filter(event => currentTab==='judgeSheets' ? resolvedEventWorkflow(event)==='judged'&&submittedScoresByEvent().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id) : true);
+            const statusFiltered = currentTab==='judgeSheets' ? events.filter(event => resolvedEventWorkflow(event)==='judged'&&submittedScoresByEvent().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id)) : publishTabEvents();
 
-            const suggestions = statusFiltered.filter(e => e.name.toLowerCase().includes(val.toLowerCase()));
+            const suggestions = statusFiltered.filter(e => String(e.name || '').toLowerCase().includes(val.toLowerCase()));
 
             if(suggestions.length > 0) {
                 list.innerHTML = suggestions.map(e => `<div class="suggestion-item" onclick="selectSuggestion('${e.id}')">${e.name} <span class="text-xs text-slate-400">(${e.category})</span></div>`).join('');
@@ -733,16 +734,16 @@
             const judge = document.getElementById('filter-judge').value;
             const search = document.getElementById('entry-search').value.toLowerCase();
 
-            let filtered = events.filter(event=>currentTab==='judgeSheets'?resolvedEventWorkflow(event)==='judged'&&reviewableJudgeScores().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id):true);
+            let filtered = currentTab==='judgeSheets' ? events.filter(event=>resolvedEventWorkflow(event)==='judged'&&reviewableJudgeScores().some(score=>score.eventId===event.id)&&!hasProcessedResult(event.id)) : publishTabEvents();
 
             if(cat && cat !== "") filtered = filtered.filter(e => e.category === cat);
             if(stage && stage !== "") filtered = filtered.filter(e => eventStageType(e) === stage);
             if(gender && gender !== "") filtered = filtered.filter(e => eventGender(e) === gender);
             if(judge) filtered = filtered.filter(event => submittedJudgeScores().some(score => score.eventId === event.id && (score.judgeId === judge || score.judgeName === judge)));
-            if(search && search !== "") filtered = filtered.filter(e => e.name.toLowerCase().includes(search));
+            if(search && search !== "") filtered = filtered.filter(e => String(e.name || '').toLowerCase().includes(search));
 
-            filtered.sort((a,b) => a.name.localeCompare(b.name));
-            const eventSelect=document.getElementById('filter-event'),selectedEvent=eventSelect.value;eventSelect.innerHTML = '<option value="">All Events</option>' + filtered.map(e => `<option value="${e.id}">${html(e.name)} (${html(e.category)})</option>`).join('');if(filtered.some(event=>event.id===selectedEvent))eventSelect.value=selectedEvent;
+            filtered.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
+            const eventSelect=document.getElementById('filter-event'),selectedEvent=eventSelect.value;eventSelect.innerHTML = '<option value="">All Events</option>' + filtered.map(e => `<option value="${html(e.id)}">${html(e.name || 'Untitled Event')} (${html(e.category || 'General')})</option>`).join('');if(filtered.some(event=>event.id===selectedEvent))eventSelect.value=selectedEvent;
             if(['judgeSheets','publish'].includes(currentTab)) renderPendingList();
         };
 
@@ -949,13 +950,13 @@
 
         window.renderPublishQueue = () => {
             const list=document.getElementById('pending-list'),cat=document.getElementById('filter-cat').value,stage=document.getElementById('filter-stage').value,gender=document.getElementById('filter-gender').value,selectedEvent=document.getElementById('filter-event').value,search=document.getElementById('entry-search').value.trim().toLowerCase();
-            const matches=event=>(!cat||event.category===cat)&&(!stage||eventStageType(event)===stage)&&(!gender||eventGender(event)===gender)&&(!selectedEvent||event.id===selectedEvent)&&(!search||event.name.toLowerCase().includes(search));
-            const directEvents=events.filter(event=>matches(event));
+            const matches=event=>(!cat||event.category===cat)&&(!stage||eventStageType(event)===stage)&&(!gender||eventGender(event)===gender)&&(!selectedEvent||event.id===selectedEvent)&&(!search||String(event.name || '').toLowerCase().includes(search));
+            const directEvents=publishTabEvents().filter(event=>matches(event)).sort((a,b)=>String(a.name || '').localeCompare(String(b.name || '')));
             const eventMeta=event=>`${html(event.category||'')} • ${html(eventGender(event))} • ${html(eventStageType(event))}`;
             const badgeFor=event=>{const workflow=resolvedEventWorkflow(event),submitted=reviewableJudgeScores().filter(score=>score.eventId===event.id).length,existing=results.find(result=>result.eventId===event.id),entryCount=registeredIdsForEvent(event.id).length;return `${workflow==='judged'?'<span class="rounded bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">Judge / Direct</span>':'<span class="rounded bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Direct Entry</span>'}<span class="ml-1 rounded bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">${html(event.resultMethod||'manual')}</span>${event.cancelled===true?'<span class="ml-1 rounded bg-red-50 px-2 py-1 text-[9px] font-black text-red-700">Cancelled</span>':''}${existing?`<span class="ml-1 rounded bg-violet-50 px-2 py-1 text-[9px] font-black text-violet-700">${html(existing.status||'published')}</span>`:''}${entryCount?`<span class="ml-1 rounded bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">${entryCount} entr${entryCount===1?'y':'ies'}</span>`:'<span class="ml-1 rounded bg-slate-50 px-2 py-1 text-[9px] font-black text-slate-500">No entries yet</span>'}${submitted?`<span class="ml-1 rounded bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">${submitted} judge sheet(s)</span>`:''}`;};
-            const rows=directEvents.map(event=>`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name)}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${eventMeta(event)}</td><td class="px-4 py-3">${badgeFor(event)}</td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</button></td></tr>`).join('');
-            const cards=directEvents.map(event=>`<button onclick="loadEvent('${html(event.id)}')" class="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"><div class="flex items-start justify-between gap-2"><h4 class="text-sm font-black text-slate-900">${html(event.name)}</h4><span class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</span></div><p class="mt-1 text-[10px] font-bold uppercase text-slate-500">${eventMeta(event)}</p><div class="mt-2 flex flex-wrap gap-1">${badgeFor(event)}</div></button>`).join('');
-            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} admin event(s) shown — judge sheet, schedule and registrations are optional here</p></div><table class="publish-queue-table w-full min-w-[820px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow / Method</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table><div class="publish-queue-cards gap-2 p-2">${cards}</div>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No admin events match the selected filters.</div>':''}`;
+            const rows=directEvents.map(event=>`<tr class="border-t hover:bg-indigo-50/30"><td class="px-4 py-3 font-black">${html(event.name || 'Untitled Event')}</td><td class="px-4 py-3 text-[10px] font-bold text-slate-500">${eventMeta(event)}</td><td class="px-4 py-3">${badgeFor(event)}</td><td class="px-4 py-3 text-right"><button onclick="loadEvent('${html(event.id)}')" class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</button></td></tr>`).join('');
+            const cards=directEvents.map(event=>`<button onclick="loadEvent('${html(event.id)}')" class="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"><div class="flex items-start justify-between gap-2"><h4 class="text-sm font-black text-slate-900">${html(event.name || 'Untitled Event')}</h4><span class="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white">Open</span></div><p class="mt-1 text-[10px] font-bold uppercase text-slate-500">${eventMeta(event)}</p><div class="mt-2 flex flex-wrap gap-1">${badgeFor(event)}</div></button>`).join('');
+            list.innerHTML=`<div class="border-b bg-slate-50 p-3"><p class="text-[10px] font-black uppercase text-slate-500">${directEvents.length} of ${events.length} admin event(s) shown — judge sheet, schedule and registrations are optional here</p></div><table class="publish-queue-table w-full min-w-[820px] text-left"><thead class="bg-white text-[9px] font-black uppercase text-slate-500"><tr><th class="px-4 py-3">Event</th><th class="px-4 py-3">Details</th><th class="px-4 py-3">Workflow / Method</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>${rows}</tbody></table><div class="publish-queue-cards gap-2 p-2">${cards}</div>${!rows?'<div class="py-8 text-center text-xs text-slate-400">No admin events match the selected filters.</div>':''}`;
             window.lucide?.createIcons();
         };
 
