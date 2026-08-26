@@ -21,7 +21,7 @@
 | # | URL / file | Access | പ്രധാന ഉദ്ദേശം |
 |---|---|---|---|
 | 1 | `index.html` | Public | Fest landing page, branding, about, team leaders, schedule, gallery, result links |
-| 2 | `results.html` | Public | Published results, team standings, individual talents |
+| 2 | `results.html` | Public | Published results, team standings |
 | 3 | `login.html` | Public entry / authenticated redirect | Admin, judge, team leader, publisher എന്നിവർക്കുള്ള shared username/email-password login |
 | 4 | `admin.html` | Admin / Super Admin | മുഴുവൻ fest configuration, masters, schedule, access, judging oversight, reset operations |
 | 5 | `team.html` | Team Leader | സ്വന്തം team students/events/registrations/schedule/reports കൈകാര്യം ചെയ്യൽ |
@@ -48,8 +48,6 @@
 
 1. **Results** — event-wise published result cards/search/filter.
 2. **Team** — team standings/total score.
-3. **Talent** — individual performance/talent ranking.
-
 Public UI-യിൽ `status === published` ആയ result data ആണ് പ്രധാനമായും പ്രത്യക്ഷപ്പെടേണ്ടത്. Students, events, registrations എന്നിവ ചേർത്താണ് winner identity, team, category മുതലായ display data resolve ചെയ്യുന്നത്.
 
 #### `login.html` — Shared Role Login
