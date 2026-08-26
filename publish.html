@@ -381,7 +381,7 @@
         <div id="view-top-scorers" class="tab-view hidden max-w-5xl mx-auto space-y-4">
             <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-amber-600">Published individual events only</p><h2 class="text-lg font-black text-slate-900">Top Scorers</h2><p class="mt-1 text-xs font-medium text-slate-500">Filter by category and gender to find the highest-scoring participants.</p></div><div id="top-scorer-summary" class="rounded-xl bg-white px-3 py-2 text-right text-xs font-black text-amber-700 shadow-sm"></div></div>
-                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><select id="top-scorer-category" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Category: All</option><option value="__general__">General: Overall individual points</option></select><select id="top-scorer-gender" onchange="renderTopScorers()" class="compact-input bg-white"><option value="">Gender: All</option><option value="Boys">Boys</option><option value="Girls">Girls</option></select><div class="relative"><i data-lucide="search" class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i><input id="top-scorer-search" type="search" oninput="renderTopScorers()" placeholder="Search participant or chest no." class="compact-input bg-white pl-9"></div></div>
             </div>
             <div id="top-scorers-list" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"></div>
         </div>
@@ -706,12 +706,12 @@
         window.renderDropdowns = () => {
             const catSelect = document.getElementById('filter-cat'); const listCatSelect = document.getElementById('list-filter-cat'); const topScorerCategory = document.getElementById('top-scorer-category');
             const selectedTopScorerCategory = topScorerCategory?.value || '';
-            const knownCategories = [...new Set([...categories, ...events.map(event => event.category).filter(Boolean)])];
+            const knownCategories = [...new Set([...categories, ...events.map(event => event.category).filter(Boolean)])].filter(category => category !== 'General');
             const catOpts = knownCategories.map(c => `<option value="${html(c)}">${html(c)}</option>`).join('');
             const openOpt = '<option value="General" class="font-bold text-blue-600">General</option>';
             catSelect.innerHTML = '<option value="">All Categories</option>' + openOpt + catOpts;
             listCatSelect.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts;
-            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option>' + openOpt + catOpts; if([...knownCategories,'General'].includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
+            if(topScorerCategory) { topScorerCategory.innerHTML = '<option value="">Category: All</option><option value="__general__">General: Overall individual points</option>' + catOpts; if([...knownCategories,'__general__'].includes(selectedTopScorerCategory)) topScorerCategory.value = selectedTopScorerCategory; }
             populateJudgeFilter();
         };
         const populateJudgeFilter = () => {
@@ -1048,17 +1048,20 @@
             const genderFilter = document.getElementById('top-scorer-gender')?.value || '';
             const search = (document.getElementById('top-scorer-search')?.value || '').trim().toLowerCase();
             const scorerMap = new Map();
+            const generalSummary = categoryFilter === '__general__';
             results.filter(result => (result.status || 'published') === 'published').forEach(result => {
                 const event = events.find(item => item.id === result.eventId) || result;
-                if((event.type || result.type || 'Single') === 'Group' || (categoryFilter && (event.category || result.category) !== categoryFilter)) return;
+                if((event.type || result.type || 'Single') === 'Group' || (categoryFilter && !generalSummary && (event.category || result.category) !== categoryFilter)) return;
                 const addPoints = (winnerId, points) => {
                     const participant = participantForId(winnerId) || result.winnerDetails?.[winnerId];
                     if(!participant) return;
                     const gender = studentGender(participant);
                     if(genderFilter && gender !== genderFilter) return;
-                    const key = String(winnerId);
-                    const entry = scorerMap.get(key) || { id:key, name:participant.name || participant.fullName || 'Participant', chestNo:participant.chestNo || '—', gender, team:teamDisplayName(participant.team || ''), points:0, events:new Set() };
-                    entry.points += Number(points || 0); entry.events.add(result.eventId); scorerMap.set(key, entry);
+                    const key = String(winnerId), awardedPoints = Number(points || 0);
+                    const entry = scorerMap.get(key) || { id:key, name:participant.name || participant.fullName || 'Participant', chestNo:participant.chestNo || '—', gender, team:teamDisplayName(participant.team || ''), points:0, events:new Set(), eventScores:new Map() };
+                    entry.points += awardedPoints; entry.events.add(result.eventId);
+                    const eventScore = entry.eventScores.get(result.eventId) || { name:event.name || result.eventName || 'Event', category:event.category || result.category || 'General', points:0 };
+                    eventScore.points += awardedPoints; entry.eventScores.set(result.eventId,eventScore); scorerMap.set(key, entry);
                 };
                 const places = Array.isArray(result.places) && result.places.length ? result.places : [['first',result.winners?.first,result.points?.first],['second',result.winners?.second,result.points?.second],['third',result.winners?.third,result.points?.third]].map(([,winners,value]) => ({winners:Array.isArray(winners)?winners:(winners?[winners]:[]),value}));
                 places.forEach(place => (place.winners || []).forEach(winnerId => addPoints(winnerId, place.earnedValue ?? place.value ?? 0)));
@@ -1069,9 +1072,13 @@
             if(summary) summary.textContent = `${scorers.length} scorer${scorers.length === 1 ? '' : 's'} found`;
             if(!host) return;
             if(!scorers.length) { host.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">No published individual-event scorers match these filters.</div>'; return; }
-            host.innerHTML = scorers.map((scorer,index) => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300"><div class="flex items-start justify-between gap-3"><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-sm font-black text-amber-700">#${index + 1}</span><div class="text-right"><p class="text-[10px] font-black uppercase tracking-wide text-slate-400">Total points</p><p class="text-2xl font-black text-amber-600">${scorer.points}</p></div></div><h3 class="mt-4 truncate text-base font-black text-slate-900">${html(scorer.name)}</h3><p class="mt-1 text-xs font-bold text-slate-500">Chest No: ${html(scorer.chestNo)} &bull; ${html(scorer.gender)}</p><div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">${html(scorer.team)}</span><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">${scorer.events.size} individual event${scorer.events.size === 1 ? '' : 's'}</span></div></article>`).join('');
+            host.innerHTML = scorers.map((scorer,index) => {
+                const eventDetails = [...scorer.eventScores.values()].sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+                return `<article tabindex="0" role="button" onclick="toggleTopScorerDetails(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTopScorerDetails(this)}" class="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"><div class="flex items-start justify-between gap-3"><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-sm font-black text-amber-700">#${index + 1}</span><div class="text-right"><p class="text-[10px] font-black uppercase tracking-wide text-slate-400">Total points</p><p class="text-2xl font-black text-amber-600">${scorer.points}</p></div></div><h3 class="mt-4 truncate text-base font-black text-slate-900">${html(scorer.name)}</h3><p class="mt-1 text-xs font-bold text-slate-500">Chest No: ${html(scorer.chestNo)} &bull; ${html(scorer.gender)}</p><div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">${html(scorer.team)}</span><span class="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">${scorer.events.size} individual event${scorer.events.size === 1 ? '' : 's'}</span></div><p class="mt-3 text-[10px] font-black text-amber-700">Click to view event points</p><div data-scorer-details class="mt-3 hidden border-t border-slate-100 pt-3">${eventDetails.map(item => `<div class="flex items-center justify-between gap-3 py-1.5 text-xs"><div class="min-w-0"><b class="block truncate text-slate-700">${html(item.name)}</b><span class="text-[10px] font-bold text-slate-400">${html(item.category)}</span></div><span class="shrink-0 rounded-lg bg-amber-50 px-2 py-1 font-black text-amber-700">${item.points} pts</span></div>`).join('')}</div></article>`;
+            }).join('');
             lucide.createIcons();
         };
+        window.toggleTopScorerDetails = card => card?.querySelector('[data-scorer-details]')?.classList.toggle('hidden');
 
         window.renderCurrentList = () => {
             const isReady = currentTab === 'ready';document.getElementById('list-title').textContent=isReady?'Ready to Publish':'Published / Archived Results';
