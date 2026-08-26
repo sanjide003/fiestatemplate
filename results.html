@@ -892,6 +892,7 @@
                  const e = eventMap[r.eventId];
                  const name = e ? e.name : r.eventName;
                  const c = e ? e.category : r.category;
+                 const resultGenderText = normalizeResultGender(e ? eventGender(e) : r.gender);
                  const cardCfg = resultsView().resultsTab?.cardFields || {}, scoreDisplay=resultsView().resultsTab?.scoreDisplay||'total';
 
                  const winnerInfo = id => {
@@ -924,7 +925,7 @@
                 div.className = "compact-result-card bg-white rounded-[1.35rem] border border-slate-200 shadow-sm relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl";
                 div.innerHTML = `
                     <div class="mb-2 flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
-                        <div class="min-w-0"><h4 class="truncate font-black text-base leading-tight text-slate-900">${safe(name)}</h4><span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-700">${safe(c || 'General')}</span></div>
+                        <div class="min-w-0"><h4 class="truncate font-black text-base leading-tight text-slate-900">${safe(name)}</h4><span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-700">${safe(c || 'General')} • ${safe(resultGenderText)}</span></div>
                     </div>
                     <div class="space-y-1.5 relative z-10">${positionHtml}</div>`
                 frag.appendChild(div);
