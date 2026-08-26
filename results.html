@@ -906,20 +906,34 @@
                     return { name: person?.name || person?.fullName || String(id || ''), chestNo: person?.chestNo || '' };
                  };
                  const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-                 const sourceRows = Array.isArray(r.places) && r.places.length
-                    ? r.places.slice(0,3).map((place,index)=>({label:place.label||['First','Second','Third'][index]||`Place ${index+1}`,points:Number(place.earnedValue??place.value??0),winners:place.winners||[]}))
-                    : [
+                 const positionLabels = ['First','Second','Third'];
+                 const emptyPositionRow = (label,index)=>({label,position:index+1,points:0,winners:[],awarded:false});
+                 const positionKey = label => String(label || '').trim().toLowerCase().replace(/\s+(place|prize|position)$/,'');
+                 const positionRows = positionLabels.map(emptyPositionRow);
+                 const setPositionRow = (raw,index) => {
+                    const fallbackIndex = Math.min(Math.max(Number(index) || 0, 0), 2);
+                    const label = raw?.label || positionLabels[fallbackIndex] || `Place ${fallbackIndex+1}`;
+                    const keyedIndex = positionLabels.findIndex(item => positionKey(item) === positionKey(label));
+                    const targetIndex = keyedIndex >= 0 ? keyedIndex : fallbackIndex;
+                    const winners = [raw?.winners || []].flat().filter(Boolean);
+                    positionRows[targetIndex] = { label: positionLabels[targetIndex], position: targetIndex + 1, points: Number(raw?.earnedValue ?? raw?.value ?? raw?.points ?? 0), winners, awarded: winners.length > 0 };
+                 };
+                 if(Array.isArray(r.places) && r.places.length) {
+                    r.places.slice(0,3).forEach(setPositionRow);
+                 } else {
+                    [
                         {label:'First',points:Number(r.points?.first||0),winners:[r.winners?.first].flat().filter(Boolean)},
                         {label:'Second',points:Number(r.points?.second||0),winners:[r.winners?.second].flat().filter(Boolean)},
                         {label:'Third',points:Number(r.points?.third||0),winners:[r.winners?.third].flat().filter(Boolean)}
-                    ];
-                 const positionRows = ['First','Second','Third'].map((label,index)=>sourceRows[index]||{label,points:0,winners:[]});
+                    ].forEach(setPositionRow);
+                 }
                  const styles = [
                     {wrap:'border-yellow-200 bg-gradient-to-br from-yellow-50 via-white to-amber-50',icon:'trophy',iconBox:'bg-yellow-400 text-white shadow-yellow-200',title:'text-yellow-700',ring:'ring-yellow-100'},
                     {wrap:'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100',icon:'medal',iconBox:'bg-slate-500 text-white shadow-slate-200',title:'text-slate-600',ring:'ring-slate-100'},
                     {wrap:'border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50',icon:'award',iconBox:'bg-orange-500 text-white shadow-orange-200',title:'text-orange-700',ring:'ring-orange-100'}
                  ];
-                 const positionHtml = positionRows.map((row,index)=>{const style=styles[index];return `<section class="rounded-xl border ${style.wrap} p-2 shadow-sm"><div class="mb-1.5 flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="grid h-7 w-7 place-items-center rounded-xl ${style.iconBox} shadow"><i data-lucide="${style.icon}" class="h-4 w-4"></i></span><div><p class="text-[8px] font-black uppercase tracking-[0.18em] ${style.title}">${safe(row.label)}</p><p class="text-[9px] font-bold text-slate-400">Position ${index+1}</p></div></div><div class="rounded-xl bg-white px-2 py-1 text-right shadow-sm ring-1 ${style.ring}"><b class="block text-sm leading-none text-emerald-600">${Number(row.points||0)}</b><span class="text-[8px] font-black uppercase text-slate-400">Pts</span></div></div><div class="space-y-1.5">${row.winners.length?row.winners.map(id=>{const info=winnerInfo(id);return `<button type="button" onclick="openResultWinnerDetails('${safe(r.eventId)}','${safe(id)}',${index+1})" class="winner-chip flex w-full items-center justify-between gap-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-left ring-1 ring-black/5 transition hover:ring-blue-200"><div class="min-w-0"><p class="truncate text-xs font-black text-slate-800">${safe(info.name)}</p><p class="text-[8px] font-bold uppercase tracking-wide text-slate-400">Tap for poster</p></div><span class="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700">${safe(info.chestNo || '-')}</span></button>`;}).join(''):'<div class="rounded-lg border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-center text-[10px] font-bold text-slate-400">Not awarded</div>'}</div></section>`;}).join('');
+                 const noEligibleHtml = '<section class="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-3 text-center text-[11px] font-black uppercase tracking-wide text-slate-400 shadow-sm">No one is eligible</section>';
+                 const positionHtml = positionRows.map((row,index)=>{if(!row.awarded)return noEligibleHtml;const style=styles[index];return `<section class="rounded-xl border ${style.wrap} p-2 shadow-sm"><div class="mb-1.5 flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="grid h-7 w-7 place-items-center rounded-xl ${style.iconBox} shadow"><i data-lucide="${style.icon}" class="h-4 w-4"></i></span><div><p class="text-[8px] font-black uppercase tracking-[0.18em] ${style.title}">${safe(row.label)}</p><p class="text-[9px] font-bold text-slate-400">Position ${index+1}</p></div></div><div class="rounded-xl bg-white px-2 py-1 text-right shadow-sm ring-1 ${style.ring}"><b class="block text-sm leading-none text-emerald-600">${Number(row.points||0)}</b><span class="text-[8px] font-black uppercase text-slate-400">Pts</span></div></div><div class="space-y-1.5">${row.winners.map(id=>{const info=winnerInfo(id);return `<button type="button" onclick="openResultWinnerDetails('${safe(r.eventId)}','${safe(id)}',${index+1})" class="winner-chip flex w-full items-center justify-between gap-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-left ring-1 ring-black/5 transition hover:ring-blue-200"><div class="min-w-0"><p class="truncate text-xs font-black text-slate-800">${safe(info.name)}</p><p class="text-[8px] font-bold uppercase tracking-wide text-slate-400">Tap for poster</p></div><span class="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700">${safe(info.chestNo || '-')}</span></button>`;}).join('')}</div></section>`;}).join('');
 
                 const div = document.createElement('div');
                 div.className = "compact-result-card bg-white rounded-[1.35rem] border border-slate-200 shadow-sm relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl";
