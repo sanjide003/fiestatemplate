@@ -342,7 +342,8 @@
         <!-- 1. RESULTS TAB -->
         <div id="tab-result" class="tab-content active pt-2">
             <!-- STICKY GLASSMORPHIC CATEGORY FILTER -->
-            <div class="sticky z-30 glass-filter-header pb-3 mb-4 transition-all" id="result-filter-header">
+            <div class="sticky z-30 glass-filter-header space-y-2 pb-3 mb-4 transition-all" id="result-filter-header">
+                 <div id="gender-filters" class="flex flex-wrap justify-center gap-2 px-4"></div>
                  <div id="cat-filters" class="flex flex-wrap justify-center gap-2 px-4">
                     <!-- Buttons will be injected here via JS -->
                     <div class="w-16 h-8 bg-slate-200 rounded-full animate-pulse"></div>
@@ -473,6 +474,7 @@
 
         let teamScores = {}, studentScores = {}, teamCounts = {};
         window.currentCat = '';
+        window.currentGender = '';
         window.currentTab = 'result';
         window.isSearchOpen = false;
         let homeConfig = {};
@@ -537,7 +539,7 @@
         function defaultResultAudience(){const cfg=resultsView().audiences||{},keys=resultAudienceKeys();return keys.includes(cfg.default)?cfg.default:(keys[0]||(cfg.showAll!==false?'all':''));}
         function renderAudienceFilters(){currentAudience='all';document.getElementById('nav-result')?.classList.toggle('active',window.currentTab==='result');window.lucide?.createIcons?.();}
         window.openDefaultResults=()=>{currentAudience='all';window.switchTab('result');};
-        window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
+        window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderGenderButtons();renderCategoryButtons();renderResults();};
         function renderPublicResultStatus(){const live=document.getElementById('header-live-status'),tabs=resultsView().tabs||{},hidden=tabs.result===false;if(!live)return;if(resultFeedError){live.textContent='Results load error';live.classList.remove('hidden');return;}if(hidden){live.textContent='Results disabled';live.classList.remove('hidden');return;}if(lastResultsUpdatedAt){live.textContent=`Live updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;live.classList.remove('hidden');return;}live.classList.add('hidden');}
         function applyResultsViewConfig(){const cfg=resultsView(),tabs={result:true,team:true};for(const key of ['result','team']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();renderAudienceFilters();renderPublicResultStatus();}
 
@@ -681,6 +683,7 @@
 
             if (tab === 'result') {
                 window.currentCat = '';
+                renderGenderButtons();
                 renderCategoryButtons();
                 const globalInput = document.getElementById('global-search-input');
                 if(globalInput) globalInput.value = '';
@@ -744,6 +747,7 @@
             });
 
             requestAnimationFrame(() => {
+                renderGenderButtons();
                 renderCategoryButtons();
                 renderResults();
                 if(window.currentTab === 'team') renderTeams(false);
@@ -782,6 +786,26 @@
             });
         }, 150);
 
+        const normalizeResultGender = value => {const text=String(value||'Both').trim().toLowerCase();if(['boys','boy','male','m'].includes(text))return 'Boys';if(['girls','girl','female','f'].includes(text))return 'Girls';return 'Both';};
+        const genderFilterOptions = () => {
+            const allowed = Array.isArray(festSetup.allowedGenders) ? festSetup.allowedGenders : [];
+            if(allowed.length===1 && normalizeResultGender(allowed[0])==='Boys') return [];
+            return [{label:'All',value:''},{label:'Boys',value:'Boys'},{label:'Girls',value:'Girls'},{label:'Both',value:'Both'}];
+        };
+        window.renderGenderButtons = () => {
+            const container = document.getElementById('gender-filters');
+            if(!container) return;
+            const options = genderFilterOptions();
+            container.classList.toggle('hidden', !options.length);
+            if(!options.length){window.currentGender='';container.innerHTML='';return;}
+            container.innerHTML = options.map(option => `<button onclick="filterGender('${option.value}')" class="cat-btn ${window.currentGender === option.value ? 'active' : ''}">${option.label}</button>`).join('');
+        };
+        window.filterGender = (gender) => {
+            window.currentGender = gender;
+            renderGenderButtons();
+            renderResults();
+        };
+
         window.renderCategoryButtons = () => {
             const container = document.getElementById('cat-filters');
             if(!container) return;
@@ -806,6 +830,7 @@
             if(tabs.result === false) { container.innerHTML = `<div class="col-span-full text-center py-12 text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl text-sm font-black">Results tab is disabled by Admin Public View settings.</div>`; return; }
             if(resultFeedError) { container.innerHTML = `<div class="col-span-full text-center py-12 text-red-700 bg-red-50 border border-red-200 rounded-2xl text-sm font-black">Published results could not be loaded. Please refresh or contact the admin.</div>`; return; }
             const cat = window.currentCat;
+            const gender = window.currentGender;
             const search = (document.getElementById('global-search-input')?.value || '').toLowerCase();
 
             let filtered = results.filter(r => {
@@ -814,6 +839,7 @@
                 const e = eventMap[r.eventId];
                 const name = String(e ? e.name : r.eventName || '').toLowerCase();
                 const c = e ? e.category : r.category;
+                const g = normalizeResultGender(e ? eventGender(e) : r.gender);
 
                 // Enhanced Search Logic
                 let match = false;
@@ -847,12 +873,12 @@
                     }
                 }
 
-                return (!cat || c === cat) && match;
+                return (!cat || c === cat) && (!gender || g === gender) && match;
             }).sort((a,b) => Number(b.publishedAt?.toMillis?.()||b.publishedAt||b.timestamp?.toMillis?.()||b.timestamp||0) - Number(a.publishedAt?.toMillis?.()||a.publishedAt||a.timestamp?.toMillis?.()||a.timestamp||0));
 
             if(filtered.length === 0) {
                 const publishedCount=visiblePublishedResults().length,audienceCount=visiblePublishedResults().filter(r=>resultMatchesAudience(r)).length;
-                const emptyText=!publishedCount?'No published results yet':search?'No results match this search':cat&&!audienceCount?'No results for this participant filter':cat?`No published results in ${cat}`:audienceCount?'No results found':'No results for this participant filter';
+                const emptyText=!publishedCount?'No published results yet':search?'No results match this search':gender?`No published ${gender} results${cat?' in '+cat:''}`:cat&&!audienceCount?'No results for this participant filter':cat?`No published results in ${cat}`:audienceCount?'No results found':'No results for this participant filter';
                 container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 italic text-sm flex flex-col items-center gap-2">
                     <i data-lucide="search-x" class="w-8 h-8 opacity-50"></i>${emptyText}${currentAudience!=='all'&&(resultsView().audiences?.showAll!==false)?'<button onclick="setResultAudience(\'all\')" class="mt-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-black text-white not-italic">Show all results</button>':''}
                 </div>`;
