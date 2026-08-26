@@ -1561,8 +1561,7 @@
                 onSnapshot(query(collection(db, "posterCertificateModels"),where('status','==','published'),where('downloadAccess.publicResults','==',true)), s => { templates = s.docs.map(d=>({id:d.id,...d.data()})); renderResults(); },error=>console.warn('Public poster and certificate models unavailable',error));
                 onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
         };
-        startResultsData().catch(error=>{console.error('Results data failed to start',error);document.getElementById('loader-screen').style.display='none';});
-        signInAnonymously(auth).catch(error=>console.warn('Optional anonymous sign-in unavailable; public Firestore reads continue.',error));
+        signInAnonymously(auth).catch(error=>console.warn('Optional anonymous sign-in unavailable; public Firestore reads continue.',error)).finally(()=>startResultsData().catch(error=>{console.error('Results data failed to start',error);document.getElementById('loader-screen').style.display='none';}));
     </script>
 </body>
 </html>
