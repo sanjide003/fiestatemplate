@@ -380,15 +380,6 @@
             </div>
         </div>
 
-        <!-- 3. TALENT TAB -->
-        <div id="tab-talent" class="tab-content public-view-width space-y-6 px-4 md:px-6 pt-6">
-            <h2 class="text-xl font-black text-slate-800 mb-2">Top Talents</h2>
-            <div id="talent-audience-selector" class="hidden flex-wrap gap-2 rounded-2xl border bg-white p-3 shadow-sm" aria-label="Top Talent participant type"></div>
-            <div id="talent-container" class="space-y-6 pb-4">
-                <!-- Talent Cards -->
-            </div>
-        </div>
-
         <!-- FOOTER -->
         <footer>
             <div class="follow">
@@ -410,25 +401,10 @@
             <a href="index.html" class="nav-item" id="nav-home"><i data-lucide="layout-grid"></i></a>
             <div onclick="openDefaultResults()" class="nav-item active" id="nav-result"><i data-lucide="list-checks"></i></div>
             <div onclick="switchTab('team')" class="nav-item" id="nav-team"><i data-lucide="trophy"></i></div>
-            <div onclick="switchTab('talent')" class="nav-item" id="nav-talent"><i data-lucide="sparkles"></i></div>
         </nav>
     </div>
 
     <!-- MODALS -->
-    <div id="modal-talent" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeModal('modal-talent')"></div>
-        <div class="bg-white w-full max-w-md rounded-3xl relative z-10 flex flex-col max-h-[85vh] shadow-2xl animate-popup">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
-                <div>
-                    <h3 class="font-bold text-lg text-slate-800" id="modal-talent-title">Top Talents</h3>
-                    <p class="text-xs text-slate-400 font-bold uppercase">Full Leaderboard</p>
-                </div>
-                <button onclick="closeModal('modal-talent')" class="bg-white border border-slate-200 p-2 rounded-full hover:bg-slate-50 transition"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
-            </div>
-            <div id="modal-talent-content" class="p-4 overflow-y-auto space-y-3 bg-white flex-1"></div>
-        </div>
-    </div>
-
     <div id="modal-student-details" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeModal('modal-student-details')"></div>
         <div class="bg-white w-full max-w-md rounded-3xl relative z-10 flex flex-col max-h-[85vh] shadow-2xl animate-popup">
@@ -526,7 +502,6 @@
             setText('#tab-team h2', resultsPage.teamTitle);
             setText('.rank-title', resultsPage.teamTitle ? `${resultsPage.teamTitle} Rankings` : 'Detailed Rankings');
             setText('.rank-subtitle', resultsPage.teamSubtitle);
-            setText('#tab-talent h2', resultsPage.talentTitle);
             const footerBottom = document.querySelector('.footer-bottom');
             if(footerBottom && footer.text) {
                 const footerNameEl = document.getElementById('footer-fest-name');
@@ -548,7 +523,7 @@
         }
 
         const resultsView=()=>festSetup.publicView?.resultsPage||{};
-        let currentAudience='',currentTalentAudience='',currentTalentGender='all',talentExpandedGroups=new Set(),initialPublicTabApplied=false,resultFeedError='',lastResultsUpdatedAt=0,lastPublishedResultAt=0;
+        let currentAudience='',initialPublicTabApplied=false,resultFeedError='',lastResultsUpdatedAt=0,lastPublishedResultAt=0;
         let teamTimelineResizeTimer;window.addEventListener('resize',()=>{clearTimeout(teamTimelineResizeTimer);teamTimelineResizeTimer=setTimeout(()=>{if(window.currentTab==='team')renderTeams(false);},160);},{passive:true});
         const personType=id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id);return studentMap[id]||person?.sourceType==='student_directory'?'student':person?.participantType||'student';};
         const resultPhotoAllowed=person=>person?.showPhotoInResults!==false;
@@ -564,7 +539,7 @@
         window.openDefaultResults=()=>{currentAudience='all';window.switchTab('result');};
         window.setResultAudience=value=>{currentAudience=value;window.switchTab('result');renderAudienceFilters();renderCategoryButtons();renderResults();};
         function renderPublicResultStatus(){const live=document.getElementById('header-live-status'),tabs=resultsView().tabs||{},hidden=tabs.result===false;if(!live)return;if(resultFeedError){live.textContent='Results load error';live.classList.remove('hidden');return;}if(hidden){live.textContent='Results disabled';live.classList.remove('hidden');return;}if(lastResultsUpdatedAt){live.textContent=`Live updated ${new Date(lastResultsUpdatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;live.classList.remove('hidden');return;}live.classList.add('hidden');}
-        function applyResultsViewConfig(){const cfg=resultsView(),tabs={result:true,team:true,talent:true};for(const key of ['result','team','talent']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team','talent'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();const talentCfg=cfg.talentTab||{},talentKeys=allowedAudiences.filter(key=>talentCfg.audiences?.[key]?.enabled!==false);currentTalentAudience=talentKeys.includes(currentTalentAudience)?currentTalentAudience:(talentKeys.includes(talentCfg.defaultParticipantType)?talentCfg.defaultParticipantType:(talentKeys[0]||''));renderAudienceFilters();renderTalentAudienceSelector();renderPublicResultStatus();}
+        function applyResultsViewConfig(){const cfg=resultsView(),tabs={result:true,team:true,...(cfg.tabs||{})};for(const key of ['result','team']){document.getElementById(`nav-${key}`)?.classList.toggle('hidden',tabs[key]===false);document.getElementById(`tab-${key}`)?.classList.toggle('public-tab-disabled',tabs[key]===false);}const rt=cfg.resultsTab||{},filter=document.getElementById('result-filter-header');filter?.classList.toggle('hidden',rt.showCategories===false);const container=document.getElementById('results-container');if(container)container.className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 md:px-6 pb-4';if(tabs[window.currentTab]===false)window.currentTab=(['result','team'].find(key=>tabs[key]!==false)||'result');const allowedAudiences=resultAudienceKeys();currentAudience=(currentAudience==='all'&&cfg.audiences?.showAll!==false)||allowedAudiences.includes(currentAudience)?currentAudience:defaultResultAudience();renderAudienceFilters();renderPublicResultStatus();}
 
         // --- SEARCH OPTIMIZATION (DEBOUNCE) ---
         const handleSearchInput = debounce((e) => {
@@ -686,8 +661,6 @@
                  btn.classList.remove('opacity-0', 'pointer-events-none');
              } else if (window.currentTab === 'team') {
                  btn.innerHTML = '<i data-lucide="trophy" class="w-5 h-5 text-yellow-500"></i>';
-             } else if (window.currentTab === 'talent') {
-                 btn.innerHTML = '<i data-lucide="sparkles" class="w-5 h-5 text-blue-500"></i>';
              }
              lucide.createIcons();
         };
@@ -696,7 +669,7 @@
             if (isAnimating || resultsView().tabs?.[tab]===false) return; // Prevent switching while animating
 
             window.currentTab = tab;
-            ['modal-talent', 'modal-student-details', 'modal-team'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+            ['modal-student-details', 'modal-team'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -714,7 +687,6 @@
                 renderResults();
             }
 
-            if (tab === 'talent') { renderTalentAudienceSelector(); renderTalent(); }
             if (tab === 'team') renderTeams(true); // Trigger Animation
             else renderTeams(false); // Just update data
 
@@ -775,7 +747,6 @@
                 renderCategoryButtons();
                 renderResults();
                 if(window.currentTab === 'team') renderTeams(false);
-                renderTalent();
                 lucide.createIcons();
 
                 // CHECK FOR REDIRECT PARAMS (NEW)
@@ -784,7 +755,7 @@
                 // NEW: CHECK FOR TEAM SCORE TAB PARAM
                 const tabParam = urlParams.get('tab');
 
-                if(['result','team','talent'].includes(tabParam) && resultsView().tabs?.[tabParam]!==false) {
+                if(['result','team'].includes(tabParam) && resultsView().tabs?.[tabParam]!==false) {
                     window.switchTab(tabParam); initialPublicTabApplied=true;
                 } else if(searchParam && !window.handledSearchParam) {
                     window.handledSearchParam = true;
@@ -806,7 +777,7 @@
                         if(window.currentTab !== 'result') switchTab('result');
                     }
                 } else if(!initialPublicTabApplied) {
-                    const preferred=resultsView().defaultTab||'result',tabs=resultsView().tabs||{},fallback=['result','team','talent'].find(key=>tabs[key]!==false)||'result'; window.switchTab(tabs[preferred]===false?fallback:preferred); initialPublicTabApplied=true;
+                    const preferred=resultsView().defaultTab||'result',tabs=resultsView().tabs||{},fallback=['result','team'].find(key=>tabs[key]!==false)||'result'; window.switchTab(tabs[preferred]===false?fallback:preferred); initialPublicTabApplied=true;
                 }
             });
         }, 150);
@@ -1399,31 +1370,7 @@
             lucide.createIcons();
         };
 
-        function renderTalentAudienceSelector(){const host=document.getElementById('talent-audience-selector');if(!host)return;host.classList.add('hidden');host.classList.remove('flex');host.innerHTML='';}
-        window.setTalentAudience=value=>{currentTalentAudience=value;currentTalentGender='all';talentExpandedGroups.clear();renderTalentAudienceSelector();renderTalent();};
-        window.setTalentGender=value=>{currentTalentGender=value;talentExpandedGroups.clear();renderTalent();};
-        window.toggleTalentGroup=encoded=>{const key=decodeURIComponent(encoded);talentExpandedGroups.has(key)?talentExpandedGroups.delete(key):talentExpandedGroups.add(key);renderTalent();};
-        const htmlEscape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-        const normalizeTalentGender = value => {const v=String(value||'').trim().toLowerCase();if(['male','boy','boys','m','ആൺ','ആൺകുട്ടി','ആൺകുട്ടികൾ'].includes(v))return 'Boys';if(['female','girl','girls','f','പെൺ','പെൺകുട്ടി','പെൺകുട്ടികൾ'].includes(v))return 'Girls';return '';};
-        const isGeneralTalentCategory = value => !String(value||'').trim() || String(value||'').trim().toLowerCase()==='general';
-        const talentPerformanceRows = () => {const rows=[];visiblePublishedResults().forEach(result=>{const event=eventMap[result.eventId]||result;if((event.type||result.type)==='Group')return;resultAwards(result).forEach(award=>(award.winners||[]).forEach(id=>{const person=window.studentForResultWinner?.(id)||studentMap[id]||participants.find(item=>item.id===id),detail=result.winnerDetails?.[id]||{};if(!person&&!detail.name)return;const rawCategory=isGeneralTalentCategory(event.category||result.category)?(person?.category||person?.class||person?.details?.class||detail.category||''):(event.category||result.category||person?.category||person?.class||'');if(isGeneralTalentCategory(rawCategory))return;const gender=normalizeTalentGender(person?.gender||detail.gender||eventGender(event));if(!gender)return;rows.push({id:person?.id||id,name:person?.name||person?.fullName||detail.name||id,team:person?.team||detail.team||'',chestNo:person?.chestNo||detail.chestNo||'',gender,category:rawCategory,categoryText:categoryLabel(rawCategory)||rawCategory,photoData:resultPhotoSrc(person)||'',score:Number(award.earnedValue??award.value??0),awardType:award.awardType,rank:award.label||award.awardType||'Award',eventName:event.name||result.eventName||'Published event',eventId:result.eventId});}));});return rows;};
-        const talentEntries = () => {const groups=new Map();talentPerformanceRows().forEach(row=>{const key=`${row.category}||${row.gender}`,label=`${row.categoryText} • ${row.gender}`;if(!groups.has(key))groups.set(key,{label,category:row.category,gender:row.gender,students:new Map()});const group=groups.get(key),current=group.students.get(row.id)||{id:row.id,name:row.name,team:row.team,chestNo:row.chestNo,gender:row.gender,category:row.category,categoryText:row.categoryText,photoData:row.photoData,score:0,positionPoints:0,gradePoints:0,events:[]};current.score+=row.score;if(row.awardType==='grade')current.gradePoints+=row.score;else current.positionPoints+=row.score;current.events.push(row);group.students.set(row.id,current);});return [...groups.values()].map(group=>({...group,ranked:[...group.students.values()].sort((a,b)=>b.score-a.score||b.positionPoints-a.positionPoints||a.name.localeCompare(b.name))})).filter(group=>group.ranked.length).sort((a,b)=>a.categoryText.localeCompare(b.categoryText)||a.gender.localeCompare(b.gender));};
-        const talentRankClass = index => index===0?'bg-yellow-100 text-yellow-700 border-yellow-200':index===1?'bg-slate-100 text-slate-700 border-slate-200':index===2?'bg-orange-100 text-orange-700 border-orange-200':'bg-blue-50 text-blue-700 border-blue-100';
-        const renderTalent = () => {
-            const container=document.getElementById('talent-container'),cfg=resultsView().talentTab||{},topCount=4,expandedCount=15,groups=talentEntries();
-            if(!container)return;
-            if(!groups.length){container.innerHTML='<div class="rounded-2xl border border-dashed bg-white px-4 py-12 text-center text-sm font-bold text-slate-400">No individual top talents yet. Published single-item results from non-General categories will appear here.</div>';return;}
-            const card=(entry,index)=>`<button type="button" onclick="showStudentDetails('${htmlEscape(entry.id)}')" class="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md active:scale-[0.99]"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${talentRankClass(index)} text-xs font-black">#${index+1}</span>${personAvatar(entry,'h-11 w-11')}<span class="min-w-0 flex-1"><b class="block truncate text-sm font-black text-slate-800">${htmlEscape(entry.name)}</b><small class="block truncate text-[10px] font-bold uppercase text-slate-500">${htmlEscape(entry.team||'Team')} • Chest ${htmlEscape(entry.chestNo||'-')}</small><small class="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-indigo-500">${entry.events.length} event${entry.events.length===1?'':'s'} • Position ${entry.positionPoints} • Grade ${entry.gradePoints}</small></span><span class="rounded-2xl bg-blue-600 px-3 py-2 text-center text-white shadow-sm"><b class="block text-lg leading-none">${entry.score}</b><small class="text-[8px] font-black uppercase">Pts</small></span></button>`;
-            container.innerHTML=groups.map(group=>{const expanded=talentExpandedGroups.has(group.label),ranked=group.ranked,list=expanded?ranked.slice(0,expandedCount):ranked.slice(0,topCount),button=cfg.showViewAll!==false&&ranked.length>topCount?`<button type="button" onclick="toggleTalentGroup('${encodeURIComponent(group.label)}')" class="rounded-full border border-blue-200 bg-white px-4 py-2 text-[10px] font-black text-blue-700 shadow-sm">${expanded?'Show Top '+topCount:'View All'}</button>`:'';return `<section class="space-y-3"><div class="flex items-center justify-between gap-3"><h3 class="flex min-w-0 items-center gap-2 px-1 font-black text-slate-800"><span class="h-5 w-1.5 rounded-full ${group.gender==='Girls'?'bg-pink-500':'bg-blue-500'}"></span><span class="truncate">${htmlEscape(group.label)}</span></h3>${button}</div><div class="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">${list.map(card).join('')}</div></section>`;}).join('');
-            lucide.createIcons();
-        };
-
-        window.showAllTalents = (cat) => {
-            talentExpandedGroups.add(String(cat||''));
-            renderTalent();
-        };
-
-        const awardRowsForStudent = (sid) => talentPerformanceRows().filter(row=>row.id===sid).map(row=>({ result:{eventId:row.eventId}, event:{name:row.eventName,category:row.category}, rank:row.rank, pts:Number(row.score||0), awardType:row.awardType }));
+        const awardRowsForStudent = (sid) => visiblePublishedResults().flatMap(result=>{const event=eventMap[result.eventId]||result;if((event.type||result.type)==='Group')return [];return resultAwards(result).flatMap(award=>(award.winners||[]).filter(id=>id===sid).map(()=>({result:{eventId:result.eventId},event:{name:event.name||result.eventName,category:event.category||result.category},rank:award.label||award.awardType||'Award',pts:Number(award.value||0),awardType:award.awardType})));});
 
         const groupMembersForRegistration = registration => [...new Set([...(registration?.studentIds||[]), ...(registration?.participantIds||[])])].map(id => {
             const person = window.studentForResultWinner?.(id) || studentMap[id] || participants.find(item=>item.id===id) || registration?.participantMeta?.[id] || {};
@@ -1475,17 +1422,8 @@
             renderStudentPosterModal(base, rows, {badge:'Winner Poster',title:e.name||'Published Result',subtitle:`${['','First','Second','Third'][position] || `Position ${position}`} • ${categoryLabel(e.category||r?.category)||'General'}`,idLabel:isGroup?'Team':'Chest',members,isGroup,position});
         };
 
-        window.showStudentDetails = (sid) => {
-            const rows = awardRowsForStudent(sid);
-            const row = talentPerformanceRows().find(item=>item.id===sid);
-            const person = window.studentForResultWinner?.(sid) || studentMap[sid] || participants.find(item=>item.id===sid) || studentScores[sid] || row;
-            if(!person && !row)return;
-            renderStudentPosterModal({...person, id:sid, name:person?.name||person?.fullName||row?.name||sid, team:person?.team||row?.team||'', chestNo:person?.chestNo||row?.chestNo||'', photoData:resultPhotoSrc(person)||''}, rows, {badge:'Top Talent',title:'Individual Talent Points',subtitle:'Single-item published events',idLabel:'Chest'});
-        };
-
         window.goToResultFromStudent = (eventId) => {
             closeModal('modal-student-details');
-            closeModal('modal-talent');
             switchTab('result');
 
             setTimeout(() => {
@@ -1551,8 +1489,7 @@
                 onSnapshot(query(collection(db, "posterCertificateModels"),where('status','==','published'),where('downloadAccess.publicResults','==',true)), s => { templates = s.docs.map(d=>({id:d.id,...d.data()})); renderResults(); },error=>console.warn('Public poster and certificate models unavailable',error));
                 onSnapshot(collection(db, "registrations"), s => { registrations = s.docs.map(d=>({id:d.id, ...d.data()})); processData(); });
         };
-        startResultsData().catch(error=>{console.error('Results data failed to start',error);document.getElementById('loader-screen').style.display='none';});
-        signInAnonymously(auth).catch(error=>console.warn('Optional anonymous sign-in unavailable; public Firestore reads continue.',error));
+        signInAnonymously(auth).catch(error=>console.warn('Optional anonymous sign-in unavailable; public Firestore reads continue.',error)).finally(()=>startResultsData().catch(error=>{console.error('Results data failed to start',error);document.getElementById('loader-screen').style.display='none';}));
     </script>
 </body>
 </html>
